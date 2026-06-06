@@ -1,37 +1,188 @@
-export default function Page() {
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-black px-6 text-neutral-400">
-      <div className="flex w-full max-w-md flex-col items-start gap-8">
-        <svg
-          fill="currentColor"
-          viewBox="0 0 147 70"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
-          className="size-10 text-white"
-        >
-          <path d="M56 50.2031V14H70V60.1562C70 65.5928 65.5928 70 60.1562 70C57.5605 70 54.9982 68.9992 53.1562 67.1573L0 14H19.7969L56 50.2031Z" />
-          <path d="M147 56H133V23.9531L100.953 56H133V70H96.6875C85.8144 70 77 61.1856 77 50.3125V14H91V46.1562L123.156 14H91V0H127.312C138.186 0 147 8.81439 147 19.6875V56Z" />
-        </svg>
+'use client'
 
-        <div className="space-y-3">
-          <h1 className="text-balance text-2xl font-semibold tracking-tight text-white">
-            To get started, describe what you want to build.
-          </h1>
-          <p className="text-pretty text-sm leading-relaxed text-neutral-500">
-            This is the default page for a fresh v0 project. Open the prompt and
-            tell v0 what to create, or browse the{' '}
-            <a
-              href="https://v0.app/templates"
-              target="_blank"
-              rel="noreferrer"
-              className="text-neutral-300 underline underline-offset-4 hover:text-white"
-            >
-              Community
-            </a>{' '}
-            for inspiration.
-          </p>
+import { useState } from 'react'
+import { MobileBottomNav } from '@/components/voxreel/MobileBottomNav'
+import { DesktopSidebar } from '@/components/voxreel/DesktopSidebar'
+import { LandingPage } from '@/components/screens/LandingPage'
+import { HomeDashboard } from '@/components/screens/HomeDashboard'
+import { ProjectsScreen } from '@/components/screens/ProjectsScreen'
+import { AudioUploadScreen, StyleSelectionScreen } from '@/components/screens/CreateFlow'
+import {
+  AnalysisProgressScreen,
+  TranscriptReviewScreen,
+} from '@/components/screens/AnalysisScreens'
+import {
+  StoryboardScreen,
+  SceneDetailEditor,
+} from '@/components/screens/StoryboardScreens'
+import {
+  PreviewScreen,
+  RenderProgressScreen,
+  ExportSuccessScreen,
+  SettingsScreen,
+} from '@/components/screens/FinalScreens'
+
+type View =
+  | 'landing'
+  | 'home'
+  | 'projects'
+  | 'create-upload'
+  | 'create-style'
+  | 'analysis'
+  | 'transcript'
+  | 'storyboard'
+  | 'scene-editor'
+  | 'preview'
+  | 'rendering'
+  | 'export-success'
+  | 'settings'
+
+const tabToView: Record<string, View> = {
+  home: 'home',
+  projects: 'projects',
+  create: 'create-upload',
+  library: 'projects',
+  settings: 'settings',
+}
+
+const viewToTab: Record<View, string> = {
+  landing: '',
+  home: 'home',
+  projects: 'projects',
+  'create-upload': 'create',
+  'create-style': 'create',
+  analysis: 'create',
+  transcript: 'create',
+  storyboard: 'create',
+  'scene-editor': 'create',
+  preview: 'create',
+  rendering: 'create',
+  'export-success': 'create',
+  settings: 'settings',
+}
+
+export default function VoxReelApp() {
+  const [view, setView] = useState<View>('landing')
+  const [activeSceneId, setActiveSceneId] = useState<number>(4)
+
+  const activeTab = viewToTab[view]
+  const isInApp = view !== 'landing'
+
+  const handleTabChange = (tab: string) => {
+    const target = tabToView[tab]
+    if (target) setView(target)
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Landing */}
+      {view === 'landing' && (
+        <LandingPage onGetStarted={() => setView('home')} />
+      )}
+
+      {/* App shell */}
+      {isInApp && (
+        <div className="flex min-h-screen">
+          <DesktopSidebar activeTab={activeTab} onTabChange={handleTabChange} />
+
+          <main
+            className="flex-1 min-w-0 px-4 pt-6 lg:pt-8 lg:px-8 lg:ml-60"
+            role="main"
+            aria-label="Main content"
+          >
+            <div className="max-w-2xl mx-auto">
+
+              {view === 'home' && (
+                <HomeDashboard
+                  onCreateReel={() => setView('create-upload')}
+                  onOpenProject={() => setView('storyboard')}
+                />
+              )}
+
+              {view === 'projects' && (
+                <ProjectsScreen
+                  onCreateReel={() => setView('create-upload')}
+                  onOpenProject={() => setView('storyboard')}
+                />
+              )}
+
+              {view === 'create-upload' && (
+                <AudioUploadScreen
+                  onNext={() => setView('create-style')}
+                  onBack={() => setView('home')}
+                />
+              )}
+
+              {view === 'create-style' && (
+                <StyleSelectionScreen
+                  onNext={() => setView('analysis')}
+                  onBack={() => setView('create-upload')}
+                />
+              )}
+
+              {view === 'analysis' && (
+                <AnalysisProgressScreen
+                  onComplete={() => setView('transcript')}
+                />
+              )}
+
+              {view === 'transcript' && (
+                <TranscriptReviewScreen
+                  onNext={() => setView('storyboard')}
+                  onBack={() => setView('analysis')}
+                />
+              )}
+
+              {view === 'storyboard' && (
+                <StoryboardScreen
+                  onSceneSelect={(id) => {
+                    setActiveSceneId(id)
+                    setView('scene-editor')
+                  }}
+                  onNext={() => setView('preview')}
+                  onBack={() => setView('transcript')}
+                />
+              )}
+
+              {view === 'scene-editor' && (
+                <SceneDetailEditor
+                  sceneId={activeSceneId}
+                  onBack={() => setView('storyboard')}
+                  onNext={() => setView('storyboard')}
+                />
+              )}
+
+              {view === 'preview' && (
+                <PreviewScreen
+                  onRender={() => setView('rendering')}
+                  onBack={() => setView('storyboard')}
+                />
+              )}
+
+              {view === 'rendering' && (
+                <RenderProgressScreen
+                  onComplete={() => setView('export-success')}
+                  onBack={() => setView('preview')}
+                />
+              )}
+
+              {view === 'export-success' && (
+                <ExportSuccessScreen
+                  onNewReel={() => setView('create-upload')}
+                  onHome={() => setView('home')}
+                />
+              )}
+
+              {view === 'settings' && (
+                <SettingsScreen onBack={() => setView('home')} />
+              )}
+
+            </div>
+          </main>
+
+          <MobileBottomNav activeTab={activeTab} onTabChange={handleTabChange} />
         </div>
-      </div>
-    </main>
+      )}
+    </div>
   )
 }
