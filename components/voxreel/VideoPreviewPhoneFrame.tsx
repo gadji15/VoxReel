@@ -174,8 +174,8 @@ export function VideoPreviewPhoneFrame({ scene, compact = false }: VideoPreviewP
             {/* Time */}
             {!compact && (
               <div className="flex justify-between mt-1">
-                <span className="text-[8px] font-medium text-white/30">0:20</span>
-                <span className="text-[8px] font-medium text-white/30">0:47</span>
+                <span className="text-[8px] font-medium text-white/30">0:33</span>
+                <span className="text-[8px] font-medium text-white/30">1:18</span>
               </div>
             )}
           </div>

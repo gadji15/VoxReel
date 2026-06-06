@@ -1,0 +1,175 @@
+# CLAUDE.md
+
+Guidance for Claude Code (and any AI assistant) working in this repository.
+
+## What VoxReel is
+
+**VoxReel** is a mobile-first, dark, premium SaaS web app that turns spoken voice
+stories into cinematic vertical reels for **TikTok, Instagram Reels, and YouTube
+Shorts**. A creator speaks a story; VoxReel transcribes it, segments it into
+emotionally-arced scenes, matches each scene to cinematic stock footage, applies
+motion / transitions / captions, and renders a share-ready 9:16 reel — while
+keeping the creator in full control of every scene.
+
+See `docs/00-vision-produit.md` for the full vision.
+
+## Product vision (short)
+
+Speak the story. VoxReel handles the rest. Target output: a polished
+**60–90 second** cinematic vertical reel, produced entirely from a phone.
+
+## Current status — IMPORTANT
+
+This repo is a **frontend-only UI skeleton**, generated with v0.
+
+- All data is **mock data** in `lib/mock-data.ts` (typed by `lib/types.ts`).
+- There is **no backend**: no auth, no database, no file upload, no transcription,
+  no AI calls, no rendering. Progress screens are animated simulations.
+- Navigation uses the **Next.js App Router** (real routes under `app/`). The old
+  single-page `view` state machine has been removed. Route paths are centralized
+  in `lib/routes.ts`. The `/app/*` section is a frontend-only grouping — there is
+  **no auth gate yet**.
+- The create flow shares one typed draft via **`CreateFlowProvider`** (React
+  Context + reducer) in `components/providers/`, wired in
+  `app/app/create/layout.tsx`. It initializes from the featured mock project and
+  persists to `localStorage` (`voxreel:create-flow-draft`, best-effort, SSR-safe).
+  This is **draft UI state only** — still no backend, upload, transcription, AI,
+  or rendering.
+- Emotion colors come from a single source of truth: `lib/emotions.ts`
+  (`getEmotionColor()` / `emotionColorMap`). Do not re-inline emotion hex values.
+
+## Current stack
+
+- **Next.js 16** (App Router) + **React 19**
+- **TypeScript** (strict)
+- **Tailwind CSS v4** (tokens in `app/globals.css`)
+- **Framer Motion**, **lucide-react**
+- shadcn-style UI + **Base UI**
+- Package manager: **pnpm** (a `pnpm-lock.yaml` is committed)
+
+## Future architecture direction (DO NOT build without instruction)
+
+The planned backend (see `docs/04-architecture-technique.md`):
+
+- **Supabase** (Auth + Postgres + Storage)
+- **OpenAI** (or equivalent) for the storytelling engine
+- **Pexels / Pixabay** for stock-clip matching
+- **Remotion + FFmpeg** for rendering/export
+
+## What Claude must NOT modify without explicit instruction
+
+- Do **not** implement authentication.
+- Do **not** implement file upload or recording.
+- Do **not** implement transcription.
+- Do **not** add real API calls or connect Supabase / OpenAI / Pexels / Pixabay /
+  Remotion / FFmpeg.
+- Do **not** implement rendering.
+- Do **not** redesign the UI or change the dark, premium, cinematic look.
+- Do **not** remove the mock data — it is needed for UI development.
+- Do **not** break the mobile-first experience.
+
+When in doubt, ask before adding a dependency or a backend concern.
+
+## Coding rules
+
+- TypeScript everywhere; prefer shared types from `lib/types.ts` over re-declaring
+  object shapes inline.
+- Keep mock data **internally consistent**: a project's `scenes` count must match
+  its storyboard length, and the featured "Midnight Betrayal" storyboard
+  (8 scenes, `1:18`) is referenced across several screens — update all references
+  together if you change it.
+- Match the surrounding code style (Tailwind utility classes, inline style objects
+  for dynamic colors/gradients, `cn()` for conditional classes).
+- Preserve accessibility: `aria-label` on icon buttons, `role="list"/"listitem"`,
+  `aria-pressed` / `aria-checked`, `aria-live` on progress.
+- Keep components client-side where they already are (`'use client'`).
+
+## Folder conventions
+
+```
+app/                      # Next.js App Router
+  page.tsx                # public landing page (/)
+  layout.tsx, globals.css
+  app/                    # frontend-only app section (no auth gate yet)
+    layout.tsx            # wraps all /app/* routes in VoxReelAppShell
+    page.tsx              # /app          → HomeDashboard
+    projects/page.tsx     # /app/projects → ProjectsScreen
+    settings/page.tsx     # /app/settings → SettingsScreen
+    create/               # the create flow (upload → … → export)
+      page.tsx            # /app/create   → redirects to /app/create/upload
+      upload, style, analysis, transcript, storyboard,
+      scene/[sceneId], preview, rendering, export
+components/
+  layout/                 # VoxReelAppShell (sidebar + bottom nav + main)
+  providers/              # CreateFlowProvider (create-flow draft state)
+  screens/                # full-screen views (one file may export several)
+  voxreel/                # VoxReel-specific building blocks
+  ui/                     # generic shadcn-style primitives
+lib/
+  routes.ts               # ROUTES constants + sceneRoute() helper
+  emotions.ts             # emotion → color map (getEmotionColor) — single source
+  types.ts                # shared UI types (incl. CreateFlowState)
+  mock-data.ts            # mock content for the UI
+  utils.ts                # cn() and helpers
+docs/                     # product + technical specs (00–16)
+public/                   # static assets
+```
+
+### Create-flow state
+
+- `useCreateFlow()` (from `components/providers/CreateFlowProvider`) exposes the
+  shared draft + typed actions (`setStoryStyle`, `updateScene`, `addScene`,
+  `lockScene`, `replaceSceneClip`, `resetCreateFlow`, …). Only usable **inside
+  `/app/create/*`** (the provider does not wrap Home/Projects/Settings).
+- The **full create-flow lifecycle is now connected** (still 100% mock):
+  - AudioUpload → `setAudioMetadata` (mock file metadata) on continue.
+  - StyleSelection → `storyStyle`, `language`, `visualSource`, `captionStyle`.
+  - Analysis → simulates the pipeline, then populates `transcript` + `scenes`.
+  - TranscriptReview → reads/edits `transcript`.
+  - Storyboard → reads `scenes` (count/duration/add).
+  - SceneDetailEditor → caption/motion/transition/clip/lock + missing-scene
+    fallback.
+  - Preview → reads title/scene count/duration.
+  - Rendering → drives `renderStatus` (`rendering` → `complete`) and writes
+    `export` metadata (fileName/duration/resolution/quality/size/format/createdAt).
+  - Export → reads `export` metadata + project title, with safe fallbacks.
+
+### Routing notes
+
+- Each `app/app/**/page.tsx` is a thin client wrapper that renders an existing
+  screen from `components/screens/` and supplies its `onNext` / `onBack` /
+  `onCreateReel` callbacks via `useRouter()` — screens were not rewritten.
+- The shared shell (`components/layout/VoxReelAppShell.tsx`) derives the active
+  nav tab from `usePathname()` and navigates with the router.
+- Use `ROUTES` from `lib/routes.ts` instead of hardcoding path strings.
+
+## How to run the project
+
+```bash
+pnpm install
+pnpm dev          # http://localhost:3000
+```
+
+## How to test / build
+
+```bash
+pnpm lint         # ESLint
+pnpm build        # production build (type-checks the project)
+pnpm start        # serve the production build
+```
+
+There is no unit-test suite yet; "testing" today means lint + build + manually
+clicking through the flow in the browser.
+
+## Next recommended tasks
+
+See `docs/16-claude-code-tasks.md` for the maintained backlog. Highlights:
+
+1. ~~Migrate to the App Router~~ ✅ done (routes under `app/app/*`, `lib/routes.ts`).
+2. ~~Centralize the emotion → color map~~ ✅ done (`lib/emotions.ts`).
+3. ~~Shared create-flow draft state~~ ✅ done (`CreateFlowProvider`).
+4. Extract design tokens (colors/typography) into documented constants.
+5. Connect the remaining create steps (upload/analysis/rendering/export) to the
+   provider once their lifecycle is defined.
+
+Keep `docs/16-claude-code-tasks.md` updated as work is completed.

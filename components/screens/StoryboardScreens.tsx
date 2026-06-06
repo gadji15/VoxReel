@@ -9,7 +9,8 @@ import { SceneCard } from '@/components/voxreel/SceneCard'
 import { EmotionBadge, IntensityBar, MatchScoreBadge } from '@/components/voxreel/Badges'
 import { BottomSheet } from '@/components/voxreel/BottomSheet'
 import { VideoPreviewPhoneFrame } from '@/components/voxreel/VideoPreviewPhoneFrame'
-import { mockScenes, mockCaptions, mockMotionPresets, mockTransitionPresets } from '@/lib/mock-data'
+import { mockMotionPresets, mockTransitionPresets } from '@/lib/mock-data'
+import { useCreateFlow } from '@/components/providers/CreateFlowProvider'
 import { cn } from '@/lib/utils'
 
 /* ── Storyboard Screen (swipeable scenes list) ── */
@@ -20,14 +21,17 @@ interface StoryboardScreenProps {
 }
 
 export function StoryboardScreen({ onSceneSelect, onNext, onBack }: StoryboardScreenProps) {
-  const [activeScene, setActiveScene] = useState(4)
+  const { state, setSelectedSceneId, addScene } = useCreateFlow()
+  const scenes = state.scenes
+  const activeScene = state.selectedSceneId ?? scenes[0]?.id ?? null
 
   const handleScene = (id: number) => {
-    setActiveScene(id)
+    setSelectedSceneId(id)
     onSceneSelect(id)
   }
 
-  const currentScene = mockScenes.find((s) => s.id === activeScene) ?? mockScenes[0]
+  const sceneCount = scenes.length
+  const duration = state.audio.duration ?? scenes[scenes.length - 1]?.timeEnd ?? '0:00'
 
   return (
     <div className="flex flex-col gap-5 pb-24 lg:pb-6">
@@ -60,12 +64,12 @@ export function StoryboardScreen({ onSceneSelect, onNext, onBack }: StoryboardSc
         <div className="flex items-center gap-4">
           <div>
             <p className="text-[10px] text-secondary-text uppercase tracking-wide">Scenes</p>
-            <p className="text-sm font-bold text-foreground">7</p>
+            <p className="text-sm font-bold text-foreground">{sceneCount}</p>
           </div>
           <div className="w-px h-8 bg-border" aria-hidden="true" />
           <div>
             <p className="text-[10px] text-secondary-text uppercase tracking-wide">Duration</p>
-            <p className="text-sm font-bold text-foreground">0:47</p>
+            <p className="text-sm font-bold text-foreground">{duration}</p>
           </div>
           <div className="w-px h-8 bg-border" aria-hidden="true" />
           <div>
@@ -80,7 +84,7 @@ export function StoryboardScreen({ onSceneSelect, onNext, onBack }: StoryboardSc
 
       {/* Swipeable scene cards */}
       <div className="flex flex-col gap-3" role="list" aria-label="Storyboard scenes">
-        {mockScenes.map((scene) => (
+        {scenes.map((scene) => (
           <div key={scene.id} role="listitem">
             <SceneCard
               scene={scene}
@@ -93,6 +97,7 @@ export function StoryboardScreen({ onSceneSelect, onNext, onBack }: StoryboardSc
 
       {/* Add scene button */}
       <button
+        onClick={() => addScene()}
         className="w-full py-3.5 rounded-2xl border-2 border-dashed border-border flex items-center justify-center gap-2 text-sm font-medium text-secondary-text hover:border-red-accent/40 hover:text-foreground transition-all"
         aria-label="Add a new scene"
       >
@@ -110,15 +115,84 @@ interface SceneDetailEditorProps {
   onNext: () => void
 }
 
+/** AI-suggested clip replacements (mock — no real provider call). */
+const suggestedClips = [
+  { name: 'Car interior, dashboard glow, night', match: 92, dur: '0:08' },
+  { name: 'Empty road, headlights, midnight', match: 87, dur: '0:12' },
+  { name: 'Rearview mirror reflection, blurred lights', match: 81, dur: '0:06' },
+  { name: 'Hands on steering wheel, nervous grip', match: 78, dur: '0:09' },
+]
+
 export function SceneDetailEditor({ sceneId = 4, onBack, onNext }: SceneDetailEditorProps) {
-  const scene = mockScenes.find((s) => s.id === sceneId) ?? mockScenes[3]
+  const {
+    getScene,
+    updateScene,
+    updateSceneMotion,
+    updateSceneTransition,
+    replaceSceneClip,
+    lockScene,
+    unlockScene,
+  } = useCreateFlow()
+  const scene = getScene(sceneId)
+
   const [clipSheet, setClipSheet] = useState(false)
   const [captionSheet, setCaptionSheet] = useState(false)
   const [motionSheet, setMotionSheet] = useState(false)
   const [activeCaption, setActiveCaption] = useState(0)
-  const [selectedMotion, setSelectedMotion] = useState(scene.motion)
-  const [selectedTransition, setSelectedTransition] = useState(scene.transition)
-  const [captionText, setCaptionText] = useState(scene.text)
+  const [selectedClipIdx, setSelectedClipIdx] = useState(0)
+  const [selectedMotion, setSelectedMotion] = useState(scene?.motion ?? '')
+  const [selectedTransition, setSelectedTransition] = useState(scene?.transition ?? '')
+  const [captionText, setCaptionText] = useState(scene?.text ?? '')
+
+  // Route safety: the requested scene doesn't exist → friendly fallback.
+  if (!scene) {
+    return (
+      <div className="flex flex-col items-center justify-center text-center gap-4 py-24">
+        <div
+          className="w-16 h-16 rounded-2xl flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(214,69,69,0.1)', border: '1px solid rgba(214,69,69,0.2)' }}
+          aria-hidden="true"
+        >
+          <Film className="w-7 h-7 text-red-accent" />
+        </div>
+        <div>
+          <h1 className="text-lg font-bold text-foreground mb-1">Scene not found</h1>
+          <p className="text-sm text-secondary-text max-w-xs">
+            This scene isn&apos;t part of the current storyboard. It may have been removed.
+          </p>
+        </div>
+        <button
+          onClick={onBack}
+          className="px-5 py-3 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
+          style={{ background: 'linear-gradient(135deg, #D64545, #B03030)' }}
+        >
+          Back to Storyboard
+        </button>
+      </div>
+    )
+  }
+
+  const applyClip = () => {
+    const clip = suggestedClips[selectedClipIdx]
+    if (clip) replaceSceneClip(scene.id, clip.name, clip.match)
+    setClipSheet(false)
+  }
+
+  const saveCaption = () => {
+    updateScene(scene.id, { text: captionText })
+    setCaptionSheet(false)
+  }
+
+  const applyMotion = () => {
+    updateSceneMotion(scene.id, selectedMotion)
+    updateSceneTransition(scene.id, selectedTransition)
+    setMotionSheet(false)
+  }
+
+  const toggleLock = () => {
+    if (scene.locked) unlockScene(scene.id)
+    else lockScene(scene.id)
+  }
 
   return (
     <div className="flex flex-col gap-5 pb-24 lg:pb-6">
@@ -181,6 +255,19 @@ export function SceneDetailEditor({ sceneId = 4, onBack, onNext }: SceneDetailEd
           <div className="flex items-center gap-3 flex-wrap">
             <EmotionBadge emotion={scene.emotion} color={scene.emotionColor} />
             <span className="text-xs text-secondary-text">{scene.timeStart} – {scene.timeEnd}</span>
+            <button
+              onClick={toggleLock}
+              className="ml-auto px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide transition-all"
+              style={
+                scene.locked
+                  ? { backgroundColor: 'rgba(214,179,106,0.12)', color: '#D6B36A', border: '1px solid rgba(214,179,106,0.3)' }
+                  : { backgroundColor: '#1A1E26', color: '#9CA3AF', border: '1px solid #252A33' }
+              }
+              aria-pressed={!!scene.locked}
+              aria-label={scene.locked ? 'Unlock scene' : 'Lock scene'}
+            >
+              {scene.locked ? 'Locked' : 'Lock'}
+            </button>
           </div>
           <p className="text-sm text-foreground leading-relaxed">&ldquo;{scene.text}&rdquo;</p>
           <IntensityBar value={scene.intensity} color={scene.emotionColor} />
@@ -262,17 +349,14 @@ export function SceneDetailEditor({ sceneId = 4, onBack, onNext }: SceneDetailEd
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-secondary-text mb-3">AI Suggested</p>
             <div className="flex flex-col gap-3" role="list">
-              {[
-                { name: 'Car interior, dashboard glow, night', match: 92, dur: '0:08' },
-                { name: 'Empty road, headlights, midnight', match: 87, dur: '0:12' },
-                { name: 'Rearview mirror reflection, blurred lights', match: 81, dur: '0:06' },
-                { name: 'Hands on steering wheel, nervous grip', match: 78, dur: '0:09' },
-              ].map((clip, i) => (
+              {suggestedClips.map((clip, i) => (
                 <button
                   key={i}
+                  onClick={() => setSelectedClipIdx(i)}
                   className="flex items-center gap-3 text-left"
                   role="listitem"
                   aria-label={`Select clip: ${clip.name}`}
+                  aria-pressed={selectedClipIdx === i}
                 >
                   <div
                     className="w-14 rounded-lg shrink-0 flex items-center justify-center"
@@ -291,11 +375,11 @@ export function SceneDetailEditor({ sceneId = 4, onBack, onNext }: SceneDetailEd
                   <div
                     className={cn(
                       'w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0',
-                      i === 0 ? 'border-red-accent bg-red-accent' : 'border-border'
+                      selectedClipIdx === i ? 'border-red-accent bg-red-accent' : 'border-border'
                     )}
                     aria-hidden="true"
                   >
-                    {i === 0 && <Check className="w-3 h-3 text-white" />}
+                    {selectedClipIdx === i && <Check className="w-3 h-3 text-white" />}
                   </div>
                 </button>
               ))}
@@ -303,7 +387,7 @@ export function SceneDetailEditor({ sceneId = 4, onBack, onNext }: SceneDetailEd
           </div>
 
           <button
-            onClick={() => setClipSheet(false)}
+            onClick={applyClip}
             className="w-full py-3.5 rounded-xl font-semibold text-white transition-all hover:opacity-90"
             style={{ background: 'linear-gradient(135deg, #D64545, #B03030)' }}
           >
@@ -375,7 +459,7 @@ export function SceneDetailEditor({ sceneId = 4, onBack, onNext }: SceneDetailEd
           </div>
 
           <button
-            onClick={() => setCaptionSheet(false)}
+            onClick={saveCaption}
             className="w-full py-3.5 rounded-xl font-semibold text-white transition-all hover:opacity-90"
             style={{ background: 'linear-gradient(135deg, #D64545, #B03030)' }}
           >
@@ -446,7 +530,7 @@ export function SceneDetailEditor({ sceneId = 4, onBack, onNext }: SceneDetailEd
           </div>
 
           <button
-            onClick={() => setMotionSheet(false)}
+            onClick={applyMotion}
             className="w-full py-3.5 rounded-xl font-semibold text-white transition-all hover:opacity-90"
             style={{ background: 'linear-gradient(135deg, #D64545, #B03030)' }}
           >

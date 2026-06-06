@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Mic, Upload, ChevronLeft, ChevronRight, Square, Play, Pause, Check, X } from 'lucide-react'
 import { AudioWaveform, StaticWaveform } from '@/components/voxreel/AudioWaveform'
 import { mockStyles } from '@/lib/mock-data'
+import { useCreateFlow } from '@/components/providers/CreateFlowProvider'
 import { cn } from '@/lib/utils'
 
 interface CreateFlowProps {
@@ -14,10 +15,24 @@ interface CreateFlowProps {
 
 /* ── Step 1: Audio Upload / Record ── */
 export function AudioUploadScreen({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
+  const { setAudioMetadata } = useCreateFlow()
   const [mode, setMode] = useState<'record' | 'upload'>('record')
   const [isRecording, setIsRecording] = useState(false)
   const [recordingSeconds, setRecordingSeconds] = useState(0)
   const [hasRecording, setHasRecording] = useState(false)
+
+  // Persist mock audio metadata into the shared draft, then advance.
+  // (Frontend-only — no real file is read or uploaded.)
+  const handleContinue = () => {
+    setAudioMetadata({
+      fileName: 'midnight-betrayal-voice.m4a',
+      duration: '1:18', // 78s
+      size: '2.4 MB',
+      mimeType: 'audio/mp4',
+      status: 'ready',
+    })
+    onNext()
+  }
 
   useEffect(() => {
     if (!isRecording) return
@@ -169,7 +184,7 @@ export function AudioUploadScreen({ onNext, onBack }: { onNext: () => void; onBa
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-foreground truncate">midnight-betrayal.mp3</p>
-              <p className="text-xs text-secondary-text">0:47 · 2.1 MB</p>
+              <p className="text-xs text-secondary-text">1:18 · 3.4 MB</p>
             </div>
             <div className="flex items-center gap-2">
               <button aria-label="Play preview">
@@ -186,7 +201,7 @@ export function AudioUploadScreen({ onNext, onBack }: { onNext: () => void; onBa
       {/* CTA */}
       {(hasRecording || mode === 'upload') && (
         <button
-          onClick={onNext}
+          onClick={handleContinue}
           className="w-full py-4 rounded-2xl font-bold text-white text-base flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-[0.98]"
           style={{ background: 'linear-gradient(135deg, #D64545, #B03030)', boxShadow: '0 0 20px rgba(214,69,69,0.3)' }}
         >
@@ -198,9 +213,55 @@ export function AudioUploadScreen({ onNext, onBack }: { onNext: () => void; onBa
   )
 }
 
+/* Compact pill-row used for the secondary output settings. Mobile-friendly,
+   premium, and additive — no redesign of the style picker. */
+function SettingPillRow<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string
+  options: { label: string; value: T }[]
+  value: T
+  onChange: (value: T) => void
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-[11px] font-bold uppercase tracking-widest text-secondary-text">{label}</p>
+      <div className="flex gap-2 overflow-x-auto scrollbar-hide" role="radiogroup" aria-label={label}>
+        {options.map((opt) => {
+          const active = value === opt.value
+          return (
+            <button
+              key={opt.value}
+              onClick={() => onChange(opt.value)}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0 transition-all duration-150"
+              style={
+                active
+                  ? { backgroundColor: 'rgba(214,69,69,0.12)', border: '1px solid rgba(214,69,69,0.35)', color: '#D64545' }
+                  : { backgroundColor: '#111318', border: '1px solid #252A33', color: '#9CA3AF' }
+              }
+              role="radio"
+              aria-checked={active}
+            >
+              {opt.label}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 /* ── Step 2: Style Selection ── */
 export function StyleSelectionScreen({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
-  const [selected, setSelected] = useState<string | null>('noir')
+  const { state, setStoryStyle, setLanguage, setVisualSource, setCaptionStyle } = useCreateFlow()
+  const selected = state.storyStyle
+
+  const handleSelect = (styleId: string) => {
+    setStoryStyle(styleId)
+  }
 
   return (
     <div className="flex flex-col gap-6 pb-24 lg:pb-6">
@@ -229,7 +290,7 @@ export function StyleSelectionScreen({ onNext, onBack }: { onNext: () => void; o
           return (
             <button
               key={style.id}
-              onClick={() => setSelected(style.id)}
+              onClick={() => handleSelect(style.id)}
               className="text-left rounded-2xl border p-4 transition-all duration-200 active:scale-[0.98]"
               style={{
                 backgroundColor: isSelected ? 'rgba(214,69,69,0.06)' : '#111318',
@@ -278,6 +339,43 @@ export function StyleSelectionScreen({ onNext, onBack }: { onNext: () => void; o
             </button>
           )
         })}
+      </div>
+
+      {/* Output settings — language, footage source, caption style */}
+      <div
+        className="flex flex-col gap-4 rounded-2xl border border-border p-4"
+        style={{ backgroundColor: '#0E0F14' }}
+      >
+        <SettingPillRow
+          label="Language"
+          value={state.language}
+          onChange={setLanguage}
+          options={[
+            { label: 'English', value: 'English' },
+            { label: 'Spanish', value: 'Spanish' },
+            { label: 'French', value: 'French' },
+          ]}
+        />
+        <SettingPillRow
+          label="Footage"
+          value={state.visualSource}
+          onChange={setVisualSource}
+          options={[
+            { label: 'Stock', value: 'stock' },
+            { label: 'Mixed', value: 'mixed' },
+            { label: 'My Uploads', value: 'upload' },
+          ]}
+        />
+        <SettingPillRow
+          label="Captions"
+          value={state.captionStyle}
+          onChange={setCaptionStyle}
+          options={[
+            { label: 'Bold Center', value: 'bold-center' },
+            { label: 'Italic Bottom', value: 'italic-bottom' },
+            { label: 'Impact Top', value: 'impact-top' },
+          ]}
+        />
       </div>
 
       <button

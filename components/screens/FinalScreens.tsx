@@ -3,11 +3,12 @@
 import { useEffect, useState } from 'react'
 import {
   ChevronLeft, Play, Pause, Volume2, VolumeX, Maximize2,
-  Download, Share2, Instagram, Youtube, CheckCircle2,
+  Download, Share2, CheckCircle2,
   User, Bell, Shield, CreditCard, Mic, Film, Zap,
   ChevronRight, Moon, Globe, HelpCircle, LogOut, Star
 } from 'lucide-react'
 import { VideoPreviewPhoneFrame } from '@/components/voxreel/VideoPreviewPhoneFrame'
+import { useCreateFlow } from '@/components/providers/CreateFlowProvider'
 import { cn } from '@/lib/utils'
 
 /* ── Vertical 9:16 Preview Screen ── */
@@ -17,6 +18,7 @@ interface PreviewScreenProps {
 }
 
 export function PreviewScreen({ onRender, onBack }: PreviewScreenProps) {
+  const { state } = useCreateFlow()
   const [isPlaying, setIsPlaying] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
   const [progress, setProgress] = useState(32)
@@ -40,7 +42,7 @@ export function PreviewScreen({ onRender, onBack }: PreviewScreenProps) {
           <ChevronLeft className="w-4 h-4 text-foreground" />
         </button>
         <div className="flex-1">
-          <p className="text-[11px] font-bold uppercase tracking-widest text-secondary-text">Midnight Betrayal</p>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-secondary-text">{state.projectTitle}</p>
           <h1 className="text-xl font-bold text-foreground">Preview</h1>
         </div>
         <button
@@ -136,8 +138,8 @@ export function PreviewScreen({ onRender, onBack }: PreviewScreenProps) {
                 <div className="h-full rounded-full transition-all" style={{ width: `${progress}%`, backgroundColor: '#C43C3C' }} />
               </div>
               <div className="flex justify-between mt-1.5">
-                <span className="text-[9px] font-medium text-white/30">0:{String(Math.floor(progress * 0.47)).padStart(2,'0')}</span>
-                <span className="text-[9px] font-medium text-white/30">0:47</span>
+                <span className="text-[9px] font-medium text-white/30">{`${Math.floor(progress * 0.78 / 60)}:${String(Math.floor(progress * 0.78) % 60).padStart(2, '0')}`}</span>
+                <span className="text-[9px] font-medium text-white/30">1:18</span>
               </div>
             </div>
           </div>
@@ -167,9 +169,9 @@ export function PreviewScreen({ onRender, onBack }: PreviewScreenProps) {
       {/* Details */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: 'Scenes', value: '7' },
-          { label: 'Duration', value: '0:47' },
-          { label: 'Resolution', value: '4K' },
+          { label: 'Scenes', value: String(state.scenes.length) },
+          { label: 'Duration', value: state.audio.duration ?? '0:00' },
+          { label: 'Resolution', value: state.export.quality ?? '4K' },
         ].map((d) => (
           <div key={d.label} className="rounded-xl p-4 text-center" style={{ backgroundColor: '#0E0F14', border: '1px solid #1C2029' }}>
             <p className="text-lg font-bold text-foreground">{d.value}</p>
@@ -198,20 +200,24 @@ interface RenderProgressProps {
 }
 
 export function RenderProgressScreen({ onComplete, onBack }: RenderProgressProps) {
+  const { state, setRenderStatus, setExportMetadata } = useCreateFlow()
   const [progress, setProgress] = useState(0)
   const [currentStage, setCurrentStage] = useState(0)
   const [done, setDone] = useState(false)
 
   const stages = [
-    'Compositing scenes...',
-    'Rendering motion effects...',
-    'Applying color grade...',
-    'Adding captions...',
-    'Encoding 4K output...',
-    'Finalizing export...',
+    'Preparing timeline...',
+    'Syncing captions...',
+    'Applying transitions...',
+    'Adding motion...',
+    'Rendering 1080×1920...',
+    'Finalizing MP4...',
   ]
 
   useEffect(() => {
+    // Mock render lifecycle — no Remotion/FFmpeg, no real encoding.
+    setRenderStatus('rendering')
+
     const totalTime = 6000
     const start = Date.now()
     const id = setInterval(() => {
@@ -221,10 +227,27 @@ export function RenderProgressScreen({ onComplete, onBack }: RenderProgressProps
       if (p >= 100) {
         clearInterval(id)
         setDone(true)
+        // Persist the (mock) export result into the shared draft.
+        const slug =
+          state.projectTitle
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/(^-|-$)/g, '') || 'voxreel-reel'
+        setRenderStatus('complete')
+        setExportMetadata({
+          fileName: `${slug}.mp4`,
+          duration: state.audio.duration ?? '1:18',
+          resolution: '1080 × 1920',
+          quality: '1080p',
+          size: '24.8 MB',
+          format: 'MP4',
+          createdAt: new Date().toISOString(),
+        })
         setTimeout(onComplete, 1500)
       }
     }, 50)
     return () => clearInterval(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (
@@ -276,7 +299,7 @@ export function RenderProgressScreen({ onComplete, onBack }: RenderProgressProps
           {done ? 'Render complete!' : stages[currentStage]}
         </p>
         <p className="text-xs text-secondary-text mt-1">
-          {done ? 'Your reel is ready to export.' : `Scene ${Math.min(Math.ceil(progress / 14), 7)} of 7`}
+          {done ? 'Your reel is ready to export.' : `Scene ${Math.min(Math.ceil(progress / 12.5), 8)} of 8`}
         </p>
       </div>
 
@@ -322,6 +345,16 @@ interface ExportSuccessProps {
 }
 
 export function ExportSuccessScreen({ onNewReel, onHome }: ExportSuccessProps) {
+  const { state } = useCreateFlow()
+  const exp = state.export
+
+  // Read export metadata from the shared draft, with friendly fallbacks so a
+  // direct deep-link (no render run) still renders without crashing.
+  const fileName = exp.fileName ?? 'voxreel-reel.mp4'
+  const metaLine =
+    [exp.resolution, exp.quality, exp.duration, exp.size].filter(Boolean).join(' · ') ||
+    'Export details unavailable'
+
   return (
     <div className="flex flex-col items-center gap-8 py-8 pb-24 lg:pb-8">
       {/* Success glow */}
@@ -357,8 +390,13 @@ export function ExportSuccessScreen({ onNewReel, onHome }: ExportSuccessProps) {
           aria-hidden="true"
         />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-foreground truncate">midnight-betrayal.mp4</p>
-          <p className="text-xs text-secondary-text mt-0.5">3840 × 2160 · 4K · 0:47 · 18.2 MB</p>
+          {state.projectTitle && (
+            <p className="text-[10px] font-bold uppercase tracking-widest text-secondary-text mb-0.5 truncate">
+              {state.projectTitle}
+            </p>
+          )}
+          <p className="text-sm font-bold text-foreground truncate">{fileName}</p>
+          <p className="text-xs text-secondary-text mt-0.5">{metaLine}</p>
           <div className="flex items-center gap-1 mt-2">
             {[1,2,3,4,5].map((s) => <Star key={s} className="w-3 h-3 fill-current" style={{ color: '#D6B36A' }} />)}
             <span className="text-[10px] text-secondary-text ml-1">AI quality score</span>

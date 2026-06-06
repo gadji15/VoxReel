@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { CheckCircle2, Pencil, ChevronRight } from 'lucide-react'
-import { mockTranscript } from '@/lib/mock-data'
+import { useCreateFlow } from '@/components/providers/CreateFlowProvider'
+import { mockScenes, mockTranscript } from '@/lib/mock-data'
 import { cn } from '@/lib/utils'
 
 interface AnalysisProgressProps {
@@ -19,6 +20,7 @@ const analysisSteps = [
 ]
 
 export function AnalysisProgressScreen({ onComplete }: AnalysisProgressProps) {
+  const { setTranscript, setScenes } = useCreateFlow()
   const [currentStep, setCurrentStep] = useState(0)
   const [progress, setProgress] = useState(0)
   const [done, setDone] = useState(false)
@@ -30,6 +32,10 @@ export function AnalysisProgressScreen({ onComplete }: AnalysisProgressProps) {
 
     const runStep = () => {
       if (stepIdx >= analysisSteps.length) {
+        // Mock analysis finished — populate the shared draft from mock data so
+        // the storyboard/transcript steps read coherent state. (No real STT/AI.)
+        setTranscript(mockTranscript.map((l) => ({ ...l })))
+        setScenes(mockScenes.map((s) => ({ ...s })))
         setProgress(100)
         setDone(true)
         setTimeout(onComplete, 1200)
@@ -144,7 +150,7 @@ export function AnalysisProgressScreen({ onComplete }: AnalysisProgressProps) {
       {done && (
         <div className="text-center">
           <p className="text-base font-bold" style={{ color: '#C9A45A' }}>Storyboard ready</p>
-          <p className="text-xs text-secondary-text mt-1">7 scenes · Noir Cinéma · 0:47</p>
+          <p className="text-xs text-secondary-text mt-1">8 scenes · Noir Cinéma · 1:18</p>
         </div>
       )}
     </div>
@@ -158,11 +164,12 @@ interface TranscriptReviewProps {
 }
 
 export function TranscriptReviewScreen({ onNext, onBack }: TranscriptReviewProps) {
+  const { state, updateTranscriptLine } = useCreateFlow()
   const [editingId, setEditingId] = useState<number | null>(null)
-  const [lines, setLines] = useState(mockTranscript)
+  const lines = state.transcript
 
   const updateLine = (id: number, text: string) => {
-    setLines((prev) => prev.map((l) => (l.id === id ? { ...l, text } : l)))
+    updateTranscriptLine(id, text)
   }
 
   return (
@@ -198,8 +205,8 @@ export function TranscriptReviewScreen({ onNext, onBack }: TranscriptReviewProps
               <div className="h-full rounded-full w-2/5" style={{ backgroundColor: '#D64545' }} />
             </div>
             <div className="flex justify-between mt-1">
-              <span className="text-[10px] text-secondary-text">0:19</span>
-              <span className="text-[10px] text-secondary-text">0:47</span>
+              <span className="text-[10px] text-secondary-text">0:31</span>
+              <span className="text-[10px] text-secondary-text">1:18</span>
             </div>
           </div>
         </div>

@@ -3,23 +3,7 @@
 import { Film, ChevronRight } from 'lucide-react'
 import { EmotionBadge, IntensityBar, MatchScoreBadge } from './Badges'
 import { cn } from '@/lib/utils'
-
-interface Scene {
-  id: number
-  index: number
-  total: number
-  timeStart: string
-  timeEnd: string
-  emotion: string
-  emotionColor: string
-  intensity: number
-  text: string
-  visualIntent: string
-  clip: string
-  clipMatch: number
-  motion: string
-  transition: string
-}
+import type { Scene } from '@/lib/types'
 
 interface SceneCardProps {
   scene: Scene

@@ -2,17 +2,7 @@
 
 import { Play, Clock, Layers, MoreVertical, TrendingUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-interface Project {
-  id: string
-  title: string
-  duration: string
-  scenes: number
-  status: 'complete' | 'rendering' | 'draft'
-  createdAt: string
-  platform: string
-  views: string | null
-}
+import type { Project } from '@/lib/types'
 
 interface ProjectCardProps {
   project: Project
