@@ -1,6 +1,6 @@
 'use client'
 
-import { Home, FolderOpen, Plus, BookOpen, Settings, Zap, ChevronRight } from 'lucide-react'
+import { Home, FolderOpen, Plus, BookOpen, Settings } from 'lucide-react'
 import { Logo } from './Logo'
 import { cn } from '@/lib/utils'
 
@@ -10,40 +10,26 @@ interface DesktopSidebarProps {
 }
 
 const navItems = [
-  { id: 'home', label: 'Home', icon: Home },
+  { id: 'home',     label: 'Home',     icon: Home },
   { id: 'projects', label: 'Projects', icon: FolderOpen },
-  { id: 'create', label: 'New Reel', icon: Plus, accent: true },
-  { id: 'library', label: 'Library', icon: BookOpen },
+  { id: 'create',   label: 'New Reel', icon: Plus, accent: true },
+  { id: 'library',  label: 'Library',  icon: BookOpen },
   { id: 'settings', label: 'Settings', icon: Settings },
 ]
 
 export function DesktopSidebar({ activeTab, onTabChange }: DesktopSidebarProps) {
   return (
     <aside
-      className="hidden lg:flex flex-col w-60 min-h-screen border-r border-border fixed left-0 top-0 bottom-0 z-40"
-      style={{ backgroundColor: '#0C0D11' }}
+      className="hidden lg:flex flex-col w-56 min-h-screen border-r fixed left-0 top-0 bottom-0 z-40"
+      style={{ backgroundColor: '#08090D', borderColor: '#1C2029' }}
     >
       {/* Logo */}
-      <div className="flex items-center px-5 py-5 border-b border-border">
+      <div className="px-5 py-6" style={{ borderBottom: '1px solid #1C2029' }}>
         <Logo size="sm" showText />
       </div>
 
-      {/* Plan badge */}
-      <div className="mx-4 mt-4 mb-2">
-        <div
-          className="flex items-center justify-between px-3 py-2 rounded-lg"
-          style={{ backgroundColor: 'rgba(214,179,106,0.08)', border: '1px solid rgba(214,179,106,0.2)' }}
-        >
-          <div className="flex items-center gap-2">
-            <Zap className="w-3.5 h-3.5" style={{ color: '#D6B36A' }} />
-            <span className="text-xs font-semibold" style={{ color: '#D6B36A' }}>PRO Plan</span>
-          </div>
-          <span className="text-[10px] text-secondary-text">12 reels left</span>
-        </div>
-      </div>
-
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-3 space-y-1" aria-label="Sidebar navigation">
+      <nav className="flex-1 px-3 py-4 flex flex-col gap-0.5" aria-label="Sidebar navigation">
         {navItems.map((item) => {
           const Icon = item.icon
           const isActive = activeTab === item.id
@@ -53,15 +39,16 @@ export function DesktopSidebar({ activeTab, onTabChange }: DesktopSidebarProps) 
               <button
                 key={item.id}
                 onClick={() => onTabChange(item.id)}
-                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl mb-2 transition-all duration-150 active:scale-98"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl my-1 transition-all duration-150 active:scale-[0.98]"
                 style={{
-                  background: 'linear-gradient(135deg, #D64545, #B03030)',
-                  boxShadow: isActive ? '0 0 16px rgba(214,69,69,0.4)' : '0 0 10px rgba(214,69,69,0.2)',
+                  border: '1px solid rgba(196,60,60,0.35)',
+                  backgroundColor: 'rgba(196,60,60,0.06)',
+                  color: '#C43C3C',
                 }}
                 aria-label={item.label}
               >
-                <Icon className="w-4.5 h-4.5 text-white" strokeWidth={2.5} />
-                <span className="text-sm font-semibold text-white">{item.label}</span>
+                <Icon className="w-4 h-4" strokeWidth={2} style={{ color: '#C43C3C' }} />
+                <span className="text-sm font-semibold" style={{ color: '#C43C3C' }}>{item.label}</span>
               </button>
             )
           }
@@ -71,34 +58,37 @@ export function DesktopSidebar({ activeTab, onTabChange }: DesktopSidebarProps) 
               key={item.id}
               onClick={() => onTabChange(item.id)}
               className={cn(
-                'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 group',
+                'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150',
                 isActive
                   ? 'bg-card text-foreground'
-                  : 'text-secondary-text hover:bg-muted hover:text-foreground'
+                  : 'hover:bg-muted'
               )}
+              style={{ color: isActive ? '#F0EDE6' : '#7A8394' }}
               aria-current={isActive ? 'page' : undefined}
             >
-              <Icon className={cn('w-4.5 h-4.5', isActive && 'text-red-accent')} />
-              <span className="text-sm font-medium flex-1 text-left">{item.label}</span>
-              {isActive && <ChevronRight className="w-3.5 h-3.5 text-red-accent opacity-60" />}
+              <Icon
+                className="w-4 h-4 shrink-0"
+                style={{ color: isActive ? '#F0EDE6' : '#7A8394' }}
+              />
+              <span className="text-sm font-medium">{item.label}</span>
             </button>
           )
         })}
       </nav>
 
       {/* User */}
-      <div className="px-4 py-4 border-t border-border">
+      <div className="px-4 py-5" style={{ borderTop: '1px solid #1C2029' }}>
         <div className="flex items-center gap-3">
           <div
-            className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-foreground"
-            style={{ background: 'linear-gradient(135deg, #D64545, #7C5CFF)' }}
+            className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
+            style={{ background: 'linear-gradient(135deg, #C43C3C, #6B4FE8)' }}
             aria-hidden="true"
           >
             A
           </div>
-          <div className="flex-1 min-w-0">
+          <div className="min-w-0">
             <p className="text-xs font-semibold text-foreground truncate">Alex Moreno</p>
-            <p className="text-[10px] text-secondary-text truncate">alex@voxreel.ai</p>
+            <p className="text-[10px] truncate" style={{ color: '#7A8394' }}>Pro Plan · 12 reels left</p>
           </div>
         </div>
       </div>

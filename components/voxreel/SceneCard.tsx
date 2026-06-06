@@ -1,7 +1,7 @@
 'use client'
 
-import { Film, Zap, ChevronRight, Play } from 'lucide-react'
-import { EmotionBadge, MatchScoreBadge, IntensityBar } from './Badges'
+import { Film, ChevronRight } from 'lucide-react'
+import { EmotionBadge, IntensityBar, MatchScoreBadge } from './Badges'
 import { cn } from '@/lib/utils'
 
 interface Scene {
@@ -32,91 +32,74 @@ export function SceneCard({ scene, isActive = false, onClick }: SceneCardProps) 
     <button
       onClick={onClick}
       className={cn(
-        'w-full text-left rounded-2xl border transition-all duration-200 overflow-hidden group active:scale-[0.98]',
-        isActive ? 'border-red-accent' : 'border-border hover:border-border/60'
+        'w-full text-left rounded-2xl transition-all duration-200 overflow-hidden group active:scale-[0.985]',
+        isActive ? 'border-[1.5px]' : 'border border-border hover:border-border/80'
       )}
       style={{
-        backgroundColor: isActive ? 'rgba(214,69,69,0.06)' : '#111318',
-        boxShadow: isActive ? '0 0 20px rgba(214,69,69,0.1)' : 'none',
+        backgroundColor: isActive ? 'rgba(196,60,60,0.04)' : '#0E0F14',
+        borderColor: isActive ? 'rgba(196,60,60,0.4)' : undefined,
+        boxShadow: isActive ? '0 0 0 1px rgba(196,60,60,0.06)' : 'none',
       }}
       aria-label={`Scene ${scene.index}: ${scene.emotion}`}
       aria-pressed={isActive}
     >
-      <div className="flex gap-3 p-4">
-        {/* Scene thumbnail mock */}
+      <div className="flex gap-4 p-4">
+        {/* Thumbnail */}
         <div
           className="relative rounded-xl overflow-hidden shrink-0"
-          style={{ width: 72, aspectRatio: '9/16', backgroundColor: '#0A0B0E' }}
+          style={{ width: 64, aspectRatio: '9/16', backgroundColor: '#08090D' }}
           aria-hidden="true"
         >
           <div
             className="absolute inset-0"
-            style={{
-              background: `linear-gradient(160deg, ${scene.emotionColor}22 0%, #080910 100%)`,
-            }}
+            style={{ background: `linear-gradient(175deg, ${scene.emotionColor}18 0%, #060708 100%)` }}
           />
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
-            <Film className="w-4 h-4 text-secondary-text opacity-40" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Film className="w-4 h-4 opacity-25 text-foreground" />
           </div>
-          {/* Scene number */}
-          <div className="absolute top-1.5 left-0 right-0 flex justify-center">
-            <span className="text-[9px] font-bold text-white/50">
+          {/* Scene index */}
+          <div className="absolute top-2 left-0 right-0 flex justify-center">
+            <span className="text-[8px] font-bold text-white/40 tabular-nums">
               {String(scene.index).padStart(2, '0')}
             </span>
           </div>
-          {/* Emotion color strip */}
+          {/* Emotion strip */}
           <div
-            className="absolute bottom-0 left-0 right-0 h-1"
-            style={{ backgroundColor: scene.emotionColor, opacity: 0.7 }}
+            className="absolute bottom-0 left-0 right-0 h-0.5"
+            style={{ backgroundColor: scene.emotionColor, opacity: 0.65 }}
           />
         </div>
 
         {/* Content */}
-        <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-          {/* Header */}
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold text-secondary-text tracking-wide">
-                SCENE {scene.index}/{scene.total}
-              </span>
-              <span className="text-[10px] text-secondary-text">
-                {scene.timeStart} – {scene.timeEnd}
+        <div className="flex-1 min-w-0 flex flex-col gap-2">
+          {/* Header row */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <EmotionBadge emotion={scene.emotion} color={scene.emotionColor} />
+              <span className="text-[10px] tabular-nums" style={{ color: '#7A8394' }}>
+                {scene.timeStart}–{scene.timeEnd}
               </span>
             </div>
-            <ChevronRight className={cn('w-3.5 h-3.5 shrink-0 transition-colors', isActive ? 'text-red-accent' : 'text-secondary-text')} />
+            <ChevronRight
+              className={cn('w-3.5 h-3.5 shrink-0 transition-colors', isActive ? 'text-red-accent' : 'opacity-30 text-secondary-text')}
+            />
           </div>
 
-          {/* Emotion */}
-          <EmotionBadge emotion={scene.emotion} color={scene.emotionColor} />
-
-          {/* Text */}
-          <p className="text-sm font-medium text-foreground leading-relaxed line-clamp-2">
+          {/* Quote */}
+          <p className="text-sm text-foreground leading-relaxed line-clamp-2">
             &ldquo;{scene.text}&rdquo;
           </p>
 
-          {/* Intensity */}
-          <IntensityBar value={scene.intensity} color={scene.emotionColor} />
-
-          {/* Clip row */}
-          <div className="flex items-center justify-between gap-2 pt-0.5">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <Play className="w-2.5 h-2.5 text-secondary-text shrink-0" />
-              <span className="text-[11px] text-secondary-text truncate">{scene.clip}</span>
+          {/* Intensity + match */}
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <IntensityBar value={scene.intensity} color={scene.emotionColor} />
             </div>
             <MatchScoreBadge score={scene.clipMatch} />
           </div>
 
-          {/* Motion / Transition */}
-          <div className="flex items-center gap-2">
-            <div
-              className="flex items-center gap-1 px-2 py-0.5 rounded-md"
-              style={{ backgroundColor: 'rgba(124,92,255,0.1)', border: '1px solid rgba(124,92,255,0.2)' }}
-            >
-              <Zap className="w-2.5 h-2.5" style={{ color: '#7C5CFF' }} />
-              <span className="text-[10px] font-medium" style={{ color: '#7C5CFF' }}>{scene.motion}</span>
-            </div>
-            <span className="text-[10px] text-secondary-text">→ {scene.transition}</span>
-          </div>
+          {/* Clip name */}
+          <p className="text-[11px] truncate" style={{ color: '#7A8394' }}>{scene.clip}</p>
         </div>
       </div>
     </button>

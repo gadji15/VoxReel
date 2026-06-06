@@ -51,101 +51,116 @@ export function PreviewScreen({ onRender, onBack }: PreviewScreenProps) {
         </button>
       </div>
 
-      {/* Full preview phone */}
-      <div className="flex justify-center">
-        <div className="relative" style={{ maxWidth: 260 }}>
-          {/* Glow */}
+      {/* Full preview phone — centered and immersive */}
+      <div className="flex flex-col items-center gap-6 py-2">
+        <div className="relative flex justify-center">
+          {/* Ambient glow */}
           <div
-            className="absolute inset-0 rounded-full pointer-events-none"
-            style={{ background: 'radial-gradient(circle, rgba(214,69,69,0.15) 0%, transparent 70%)', filter: 'blur(30px)', transform: 'scale(1.5)' }}
+            className="absolute pointer-events-none"
+            style={{
+              bottom: -40,
+              left: '5%',
+              right: '5%',
+              height: 80,
+              background: 'radial-gradient(ellipse at center, rgba(196,60,60,0.2) 0%, transparent 70%)',
+              filter: 'blur(24px)',
+            }}
             aria-hidden="true"
           />
+
+          {/* Phone */}
           <div
-            className="relative rounded-[36px] overflow-hidden mx-auto"
-            style={{ aspectRatio: '9/16', width: 240, border: '3px solid #252A33', background: '#0A0B0E', boxShadow: '0 0 60px rgba(214,69,69,0.12), 0 30px 80px rgba(0,0,0,0.8)' }}
+            className="relative rounded-[40px] overflow-hidden"
+            style={{
+              aspectRatio: '9/16',
+              width: 290,
+              background: '#08090D',
+              border: '2px solid #252A33',
+              boxShadow: '0 0 0 1px rgba(255,255,255,0.04), 0 40px 100px rgba(0,0,0,0.95), 0 0 60px rgba(196,60,60,0.12)',
+            }}
             aria-label="9:16 video preview"
           >
-            {/* Scene content */}
-            <div
-              className="absolute inset-0"
-              style={{ background: 'linear-gradient(160deg, #1A0A0A 0%, #080910 60%, #0A0812 100%)' }}
-            />
-            <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at center, transparent 20%, rgba(0,0,0,0.7) 100%)' }} aria-hidden="true" />
+            {/* Background */}
+            <div className="absolute inset-0" style={{ background: 'linear-gradient(195deg, rgba(196,60,60,0.12) 0%, #090A10 45%, #060708 100%)' }} />
+            <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 50% 38%, transparent 20%, rgba(0,0,0,0.85) 100%)' }} aria-hidden="true" />
 
-            {/* Scene number top */}
-            <div className="absolute top-5 left-4 right-4 flex items-center justify-between z-10">
-              <span className="text-[9px] font-bold text-white/30 tracking-widest">VOXREEL</span>
+            {/* Film grain */}
+            <div
+              className="absolute inset-0 opacity-[0.045] mix-blend-overlay pointer-events-none"
+              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")` }}
+              aria-hidden="true"
+            />
+
+            {/* Top bar */}
+            <div className="absolute top-5 left-5 right-5 flex items-center justify-between z-10">
+              <span className="text-[9px] font-bold text-white/25 tracking-widest">VOXREEL</span>
               <span
-                className="text-[8px] font-bold uppercase px-2 py-0.5 rounded-full"
-                style={{ backgroundColor: 'rgba(214,69,69,0.2)', color: '#D64545', border: '1px solid rgba(214,69,69,0.3)' }}
+                className="text-[9px] font-bold uppercase px-2.5 py-0.5 rounded-full"
+                style={{ backgroundColor: 'rgba(196,60,60,0.18)', color: '#C43C3C', border: '1px solid rgba(196,60,60,0.3)' }}
               >
                 Betrayal
               </span>
             </div>
 
-            {/* Center play/pause */}
+            {/* Mute */}
+            <button
+              className="absolute top-14 right-5 z-10"
+              onClick={() => setIsMuted(!isMuted)}
+              aria-label={isMuted ? 'Unmute' : 'Mute'}
+            >
+              {isMuted ? <VolumeX className="w-4 h-4 text-white/30" /> : <Volume2 className="w-4 h-4 text-white/30" />}
+            </button>
+
+            {/* Play/pause */}
             <button
               className="absolute inset-0 flex items-center justify-center z-10"
               onClick={() => setIsPlaying(!isPlaying)}
               aria-label={isPlaying ? 'Pause' : 'Play'}
             >
               {!isPlaying && (
-                <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(214,69,69,0.9)', boxShadow: '0 0 30px rgba(214,69,69,0.6)' }}>
-                  <Play className="w-6 h-6 text-white ml-1" fill="white" />
+                <div
+                  className="w-16 h-16 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: 'rgba(196,60,60,0.88)', boxShadow: '0 0 40px rgba(196,60,60,0.6)' }}
+                >
+                  <Play className="w-7 h-7 text-white ml-1" fill="white" />
                 </div>
               )}
             </button>
 
-            {/* Caption */}
-            <div className="absolute bottom-12 left-4 right-4 z-10">
-              <p className="text-white font-bold text-[11px] leading-snug text-center" style={{ textShadow: '0 2px 10px rgba(0,0,0,0.9)' }}>
+            {/* Caption + progress */}
+            <div className="absolute bottom-0 left-0 right-0 z-10 px-5 pb-6">
+              <p className="text-white font-bold text-[12px] leading-snug text-center mb-3" style={{ textShadow: '0 2px 14px rgba(0,0,0,0.95)' }}>
                 She found the phone he swore&nbsp;didn&rsquo;t exist.
               </p>
-            </div>
-
-            {/* Progress bar */}
-            <div className="absolute bottom-6 left-4 right-4 z-10">
-              <div className="h-[2px] rounded-full bg-white/20 overflow-hidden">
-                <div className="h-full rounded-full transition-all" style={{ width: `${progress}%`, backgroundColor: '#D64545' }} />
+              <div className="h-[1.5px] rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}>
+                <div className="h-full rounded-full transition-all" style={{ width: `${progress}%`, backgroundColor: '#C43C3C' }} />
               </div>
-              <div className="flex justify-between mt-1">
-                <span className="text-[9px] text-white/40">0:{String(Math.floor(progress * 0.47)).padStart(2,'0')}</span>
-                <span className="text-[9px] text-white/40">0:47</span>
+              <div className="flex justify-between mt-1.5">
+                <span className="text-[9px] font-medium text-white/30">0:{String(Math.floor(progress * 0.47)).padStart(2,'0')}</span>
+                <span className="text-[9px] font-medium text-white/30">0:47</span>
               </div>
             </div>
+          </div>
+        </div>
 
-            {/* Mute button */}
+        {/* Platform selector */}
+        <div className="flex items-center gap-2" role="group" aria-label="Platform selection">
+          {[
+            { name: 'TikTok', active: true },
+            { name: 'Reels', active: false },
+            { name: 'Shorts', active: false },
+          ].map((p) => (
             <button
-              className="absolute top-12 right-4 z-10"
-              onClick={() => setIsMuted(!isMuted)}
-              aria-label={isMuted ? 'Unmute' : 'Mute'}
+              key={p.name}
+              className="text-xs font-semibold px-4 py-2 rounded-full transition-all"
+              style={p.active
+                ? { backgroundColor: 'rgba(196,60,60,0.1)', border: '1px solid rgba(196,60,60,0.3)', color: '#C43C3C' }
+                : { backgroundColor: '#0E0F14', border: '1px solid #1C2029', color: '#7A8394' }
+              }
             >
-              {isMuted ? <VolumeX className="w-4 h-4 text-white/40" /> : <Volume2 className="w-4 h-4 text-white/40" />}
+              {p.name}
             </button>
-          </div>
-
-          {/* Platform selector below phone */}
-          <div className="flex items-center justify-center gap-4 mt-4" role="group" aria-label="Platform selection">
-            {[
-              { name: 'TikTok', active: true },
-              { name: 'Reels', active: false },
-              { name: 'Shorts', active: false },
-            ].map((p) => (
-              <button
-                key={p.name}
-                className={cn(
-                  'text-xs font-semibold px-3 py-1.5 rounded-full transition-all border',
-                  p.active ? 'text-foreground' : 'text-secondary-text hover:text-foreground'
-                )}
-                style={p.active
-                  ? { backgroundColor: 'rgba(214,69,69,0.12)', borderColor: '#D64545', color: '#D64545' }
-                  : { backgroundColor: '#111318', borderColor: '#252A33' }
-                }
-              >
-                {p.name}
-              </button>
-            ))}
-          </div>
+          ))}
         </div>
       </div>
 
@@ -156,9 +171,9 @@ export function PreviewScreen({ onRender, onBack }: PreviewScreenProps) {
           { label: 'Duration', value: '0:47' },
           { label: 'Resolution', value: '4K' },
         ].map((d) => (
-          <div key={d.label} className="rounded-xl border border-border p-3 text-center" style={{ backgroundColor: '#111318' }}>
-            <p className="text-base font-bold text-foreground">{d.value}</p>
-            <p className="text-[10px] text-secondary-text mt-0.5">{d.label}</p>
+          <div key={d.label} className="rounded-xl p-4 text-center" style={{ backgroundColor: '#0E0F14', border: '1px solid #1C2029' }}>
+            <p className="text-lg font-bold text-foreground">{d.value}</p>
+            <p className="text-[10px] mt-1" style={{ color: '#7A8394' }}>{d.label}</p>
           </div>
         ))}
       </div>
@@ -166,8 +181,8 @@ export function PreviewScreen({ onRender, onBack }: PreviewScreenProps) {
       {/* Render CTA */}
       <button
         onClick={onRender}
-        className="w-full py-4 rounded-2xl font-bold text-white text-base flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-[0.98]"
-        style={{ background: 'linear-gradient(135deg, #D64545, #B03030)', boxShadow: '0 0 30px rgba(214,69,69,0.4)' }}
+        className="w-full py-4 rounded-2xl font-semibold text-white text-base flex items-center justify-center gap-2 transition-all hover:opacity-92 active:scale-[0.98]"
+        style={{ backgroundColor: '#C43C3C', boxShadow: '0 0 32px rgba(196,60,60,0.35)' }}
       >
         <Zap className="w-5 h-5" />
         Render Reel
@@ -333,8 +348,8 @@ export function ExportSuccessScreen({ onNewReel, onHome }: ExportSuccessProps) {
 
       {/* Reel info card */}
       <div
-        className="w-full rounded-2xl border border-border p-5 flex items-center gap-4"
-        style={{ backgroundColor: '#111318' }}
+        className="w-full rounded-2xl p-5 flex items-center gap-4"
+        style={{ backgroundColor: '#0E0F14', border: '1px solid #1C2029' }}
       >
         <div
           className="rounded-xl overflow-hidden shrink-0"

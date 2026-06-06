@@ -7,7 +7,6 @@
 @theme inline {
   --font-sans: var(--font-inter), 'Inter Fallback', system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), 'Geist Mono Fallback';
-  --font-heading: var(--font-playfair), 'Playfair Display Fallback', Georgia, serif;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -30,6 +29,7 @@
 
   /* VoxReel brand tokens */
   --color-panel: var(--panel);
+  --color-panel-elevated: var(--panel-elevated);
   --color-red-accent: var(--red-accent);
   --color-violet-accent: var(--violet-accent);
   --color-gold-accent: var(--gold-accent);
@@ -43,33 +43,34 @@
 }
 
 :root {
-  /* VoxReel dark cinematic theme — always dark */
-  --background: #07080A;
-  --foreground: #F4F1EA;
-  --card: #111318;
-  --card-foreground: #F4F1EA;
-  --popover: #111318;
-  --popover-foreground: #F4F1EA;
-  --primary: #D64545;
-  --primary-foreground: #F4F1EA;
-  --secondary: #252A33;
-  --secondary-foreground: #F4F1EA;
-  --muted: #1A1E26;
-  --muted-foreground: #9CA3AF;
-  --accent: #7C5CFF;
-  --accent-foreground: #F4F1EA;
-  --destructive: #D64545;
-  --border: #252A33;
-  --input: #1A1E26;
-  --ring: #D64545;
+  /* VoxReel — premium dark cinematic, always dark */
+  --background: #060708;
+  --foreground: #F0EDE6;
+  --card: #0E0F14;
+  --card-foreground: #F0EDE6;
+  --popover: #0E0F14;
+  --popover-foreground: #F0EDE6;
+  --primary: #C43C3C;
+  --primary-foreground: #F0EDE6;
+  --secondary: #1C2029;
+  --secondary-foreground: #F0EDE6;
+  --muted: #141720;
+  --muted-foreground: #7A8394;
+  --accent: #6B4FE8;
+  --accent-foreground: #F0EDE6;
+  --destructive: #C43C3C;
+  --border: #1C2029;
+  --input: #141720;
+  --ring: #C43C3C;
   --radius: 0.75rem;
 
   /* Brand-specific tokens */
-  --panel: #111318;
-  --red-accent: #D64545;
-  --violet-accent: #7C5CFF;
-  --gold-accent: #D6B36A;
-  --secondary-text: #9CA3AF;
+  --panel: #0E0F14;
+  --panel-elevated: #13151C;
+  --red-accent: #C43C3C;
+  --violet-accent: #6B4FE8;
+  --gold-accent: #C9A45A;
+  --secondary-text: #7A8394;
 }
 
 @layer base {
@@ -86,46 +87,34 @@
   }
 }
 
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
-}
-::-webkit-scrollbar-track {
-  background: #07080A;
-}
-::-webkit-scrollbar-thumb {
-  background: #252A33;
-  border-radius: 2px;
-}
+/* Scrollbar */
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: #060708; }
+::-webkit-scrollbar-thumb { background: #1C2029; border-radius: 2px; }
 
-/* Waveform animation */
+/* Waveform */
 @keyframes waveBar {
-  0%, 100% { transform: scaleY(0.3); }
+  0%, 100% { transform: scaleY(0.25); }
   50% { transform: scaleY(1); }
 }
 
-/* Pulse glow */
+/* Pulse glow — used only for record button */
 @keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 8px 2px rgba(214, 69, 69, 0.3); }
-  50% { box-shadow: 0 0 20px 6px rgba(214, 69, 69, 0.6); }
-}
-
-/* Scan line */
-@keyframes scanLine {
-  0% { transform: translateY(-100%); }
-  100% { transform: translateY(100vh); }
+  0%, 100% { box-shadow: 0 0 10px 3px rgba(196, 60, 60, 0.35); }
+  50% { box-shadow: 0 0 28px 8px rgba(196, 60, 60, 0.6); }
 }
 
 .animate-pulse-glow {
-  animation: pulseGlow 2s ease-in-out infinite;
+  animation: pulseGlow 2.2s ease-in-out infinite;
 }
 
-/* Bottom sheet */
-.bottom-sheet-enter {
-  transform: translateY(100%);
-}
-.bottom-sheet-enter-active {
-  transform: translateY(0);
-  transition: transform 300ms cubic-bezier(0.32, 0.72, 0, 1);
+/* Film grain overlay */
+.film-grain::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+  opacity: 0.04;
+  pointer-events: none;
+  mix-blend-mode: overlay;
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { Play, Volume2, Maximize2 } from 'lucide-react'
+import { Play, Volume2 } from 'lucide-react'
 import { useState } from 'react'
 
 interface VideoPreviewPhoneFrameProps {
@@ -18,71 +18,107 @@ export function VideoPreviewPhoneFrame({ scene, compact = false }: VideoPreviewP
 
   const s = scene ?? {
     emotion: 'Betrayal',
-    emotionColor: '#D64545',
+    emotionColor: '#C43C3C',
     text: "She found the phone he swore didn't exist.",
     visualIntent: 'Dark car interior, phone glow, night tension.',
   }
 
+  const width = compact ? 130 : 220
+
   return (
     <div
       className="relative mx-auto"
-      style={{
-        width: compact ? 140 : 200,
-        maxWidth: '100%',
-      }}
+      style={{ width, maxWidth: '100%' }}
       aria-label="Vertical video preview"
     >
+      {/* Ambient glow beneath phone */}
+      {!compact && (
+        <div
+          className="absolute pointer-events-none"
+          style={{
+            bottom: -24,
+            left: '10%',
+            right: '10%',
+            height: 60,
+            background: `radial-gradient(ellipse at center, ${s.emotionColor}28 0%, transparent 70%)`,
+            filter: 'blur(18px)',
+          }}
+          aria-hidden="true"
+        />
+      )}
+
       {/* Phone frame */}
       <div
-        className="relative rounded-[28px] overflow-hidden"
+        className="relative rounded-[32px] overflow-hidden"
         style={{
           aspectRatio: '9/16',
-          border: '2px solid #252A33',
-          boxShadow: compact ? 'none' : '0 0 40px rgba(214,69,69,0.15), 0 20px 60px rgba(0,0,0,0.6)',
-          background: '#0A0B0E',
+          border: compact ? '1.5px solid #1C2029' : '2px solid #252A33',
+          background: '#08090D',
+          boxShadow: compact
+            ? 'none'
+            : `0 0 0 1px rgba(255,255,255,0.04), 0 32px 80px rgba(0,0,0,0.9), 0 0 50px ${s.emotionColor}14`,
         }}
       >
-        {/* Video content mock */}
+        {/* Cinematic scene background */}
         <div className="absolute inset-0">
-          {/* Dark cinematic scene bg */}
           <div
             className="absolute inset-0"
             style={{
-              background: 'linear-gradient(160deg, #0D0E15 0%, #1A0A0A 60%, #0A0810 100%)',
+              background: `linear-gradient(195deg, ${s.emotionColor}14 0%, #090A10 45%, #060708 100%)`,
             }}
           />
 
-          {/* Vignette */}
+          {/* Deep vignette */}
           <div
             className="absolute inset-0"
+            style={{ background: 'radial-gradient(ellipse at 50% 40%, transparent 20%, rgba(0,0,0,0.85) 100%)' }}
+            aria-hidden="true"
+          />
+
+          {/* Subtle film grain */}
+          <div
+            className="absolute inset-0 opacity-[0.05] mix-blend-overlay pointer-events-none"
             style={{
-              background: 'radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.8) 100%)',
+              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
             }}
             aria-hidden="true"
           />
 
-          {/* Subtle grain texture */}
-          <div
-            className="absolute inset-0 opacity-20"
-            style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E")`,
-            }}
-            aria-hidden="true"
-          />
+          {/* Horizontal light streak */}
+          {!compact && (
+            <div
+              className="absolute pointer-events-none"
+              style={{
+                top: '38%',
+                left: 0,
+                right: 0,
+                height: 1,
+                background: `linear-gradient(90deg, transparent, ${s.emotionColor}18, transparent)`,
+              }}
+              aria-hidden="true"
+            />
+          )}
 
-          {/* Emotion badge top left */}
-          <div className="absolute top-4 left-3 z-10">
+          {/* Top bar — emotion + watermark */}
+          <div className="absolute top-4 left-3 right-3 flex items-center justify-between z-10">
             <span
-              className="text-[8px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"
-              style={{ backgroundColor: `${s.emotionColor}20`, color: s.emotionColor, border: `1px solid ${s.emotionColor}40` }}
+              className="font-bold uppercase tracking-widest rounded-full"
+              style={{
+                fontSize: compact ? 6 : 8,
+                padding: compact ? '1px 6px' : '2px 8px',
+                backgroundColor: `${s.emotionColor}20`,
+                color: s.emotionColor,
+                border: `1px solid ${s.emotionColor}35`,
+              }}
             >
               {s.emotion}
             </span>
-          </div>
-
-          {/* VoxReel watermark top right */}
-          <div className="absolute top-3.5 right-3 z-10">
-            <span className="text-[7px] font-bold text-white/30 tracking-wider">VOXREEL</span>
+            <span
+              className="font-bold tracking-widest text-white/25"
+              style={{ fontSize: compact ? 6 : 8 }}
+            >
+              VOXREEL
+            </span>
           </div>
 
           {/* Center play */}
@@ -93,47 +129,65 @@ export function VideoPreviewPhoneFrame({ scene, compact = false }: VideoPreviewP
               aria-label="Play preview"
             >
               <div
-                className="w-10 h-10 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: 'rgba(214,69,69,0.9)', boxShadow: '0 0 20px rgba(214,69,69,0.5)' }}
+                className="rounded-full flex items-center justify-center transition-transform hover:scale-105"
+                style={{
+                  width: compact ? 28 : 44,
+                  height: compact ? 28 : 44,
+                  backgroundColor: 'rgba(196,60,60,0.88)',
+                  boxShadow: `0 0 ${compact ? 12 : 24}px rgba(196,60,60,0.55)`,
+                }}
               >
-                <Play className="w-5 h-5 text-white ml-0.5" fill="white" />
+                <Play
+                  fill="white"
+                  className="text-white"
+                  style={{
+                    width: compact ? 10 : 16,
+                    height: compact ? 10 : 16,
+                    marginLeft: compact ? 1 : 2,
+                  }}
+                />
               </div>
             </button>
           )}
 
-          {/* Caption text at bottom */}
-          <div className="absolute bottom-0 left-0 right-0 z-10 px-3 pb-5">
-            <div
-              className="text-white font-bold leading-snug mb-2"
-              style={{ fontSize: compact ? '7px' : '10px', textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
+          {/* Caption + progress */}
+          <div className="absolute bottom-0 left-0 right-0 z-10" style={{ padding: compact ? '0 8px 10px' : '0 14px 16px' }}>
+            {/* Caption */}
+            <p
+              className="text-white font-bold leading-snug mb-2.5 text-center"
+              style={{
+                fontSize: compact ? 7 : 11,
+                textShadow: '0 2px 12px rgba(0,0,0,0.95)',
+              }}
             >
               {s.text}
-            </div>
+            </p>
 
             {/* Progress bar */}
-            <div className="h-[2px] rounded-full bg-white/20 overflow-hidden">
+            <div className="h-[1.5px] rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}>
               <div
                 className="h-full rounded-full"
-                style={{ width: '42%', backgroundColor: '#D64545' }}
+                style={{ width: '42%', backgroundColor: s.emotionColor }}
               />
             </div>
+
+            {/* Time */}
+            {!compact && (
+              <div className="flex justify-between mt-1">
+                <span className="text-[8px] font-medium text-white/30">0:20</span>
+                <span className="text-[8px] font-medium text-white/30">0:47</span>
+              </div>
+            )}
           </div>
 
-          {/* Volume icon */}
-          <div className="absolute bottom-8 right-3 z-10">
-            <Volume2 className="w-3 h-3 text-white/40" />
-          </div>
+          {/* Volume */}
+          {!compact && (
+            <div className="absolute top-12 right-3 z-10">
+              <Volume2 className="w-3 h-3 text-white/25" />
+            </div>
+          )}
         </div>
       </div>
-
-      {/* Platform labels */}
-      {!compact && (
-        <div className="flex items-center justify-center gap-3 mt-3">
-          {['TikTok', 'Reels', 'Shorts'].map((p) => (
-            <span key={p} className="text-[10px] text-secondary-text font-medium">{p}</span>
-          ))}
-        </div>
-      )}
     </div>
   )
 }

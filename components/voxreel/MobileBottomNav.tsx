@@ -21,7 +21,7 @@ export function MobileBottomNav({ activeTab, onTabChange }: MobileBottomNavProps
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 lg:hidden"
       aria-label="Main navigation"
-      style={{ backgroundColor: '#0C0D11', borderTop: '1px solid #252A33' }}
+      style={{ backgroundColor: '#08090D', borderTop: '1px solid #1C2029', backdropFilter: 'blur(16px)' }}
     >
       <div className="flex items-center justify-around px-2 pb-safe pt-2 pb-4">
         {navItems.map((item) => {
@@ -45,10 +45,8 @@ export function MobileBottomNav({ activeTab, onTabChange }: MobileBottomNavProps
                       : 'hover:scale-105 active:scale-95'
                   )}
                   style={{
-                    background: isActive
-                      ? 'linear-gradient(135deg, #D64545, #B03030)'
-                      : 'linear-gradient(135deg, #D64545, #B03030)',
-                    boxShadow: '0 0 20px rgba(214,69,69,0.5)',
+                    backgroundColor: '#C43C3C',
+                    boxShadow: '0 0 20px rgba(196,60,60,0.45)',
                   }}
                 >
                   <Plus className="w-7 h-7 text-white" strokeWidth={2.5} />

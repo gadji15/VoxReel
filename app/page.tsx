@@ -86,11 +86,11 @@ export default function VoxReelApp() {
           <DesktopSidebar activeTab={activeTab} onTabChange={handleTabChange} />
 
           <main
-            className="flex-1 min-w-0 px-4 pt-6 lg:pt-8 lg:px-8 lg:ml-60"
+            className="flex-1 min-w-0 px-4 pt-6 lg:pt-10 lg:px-10 lg:ml-56"
             role="main"
             aria-label="Main content"
           >
-            <div className="max-w-2xl mx-auto">
+            <div className="max-w-xl mx-auto">
 
               {view === 'home' && (
                 <HomeDashboard

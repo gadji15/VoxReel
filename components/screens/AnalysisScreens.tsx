@@ -65,9 +65,9 @@ export function AnalysisProgressScreen({ onComplete }: AnalysisProgressProps) {
         <div
           className="absolute inset-0 rounded-full"
           style={{
-            background: done
-              ? 'radial-gradient(circle, rgba(214,179,106,0.2) 0%, transparent 70%)'
-              : 'radial-gradient(circle, rgba(214,69,69,0.2) 0%, transparent 70%)',
+              background: done
+              ? 'radial-gradient(circle, rgba(201,164,90,0.18) 0%, transparent 70%)'
+              : 'radial-gradient(circle, rgba(196,60,60,0.15) 0%, transparent 70%)',
             transform: 'scale(1.6)',
             animation: done ? 'none' : 'pulse 2s ease-in-out infinite',
           }}
@@ -83,7 +83,7 @@ export function AnalysisProgressScreen({ onComplete }: AnalysisProgressProps) {
             cy="70"
             r="58"
             fill="none"
-            stroke={done ? '#D6B36A' : '#D64545'}
+            stroke={done ? '#C9A45A' : '#C43C3C'}
             strokeWidth="6"
             strokeLinecap="round"
             strokeDasharray={`${2 * Math.PI * 58}`}
@@ -119,8 +119,8 @@ export function AnalysisProgressScreen({ onComplete }: AnalysisProgressProps) {
                   'w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all duration-300',
                 )}
                 style={{
-                  backgroundColor: isComplete ? '#D64545' : isActive ? 'rgba(214,69,69,0.2)' : '#252A33',
-                  border: isActive ? '1px solid #D64545' : 'none',
+                  backgroundColor: isComplete ? '#C43C3C' : isActive ? 'rgba(196,60,60,0.15)' : '#1C2029',
+                  border: isActive ? '1px solid rgba(196,60,60,0.5)' : 'none',
                 }}
                 aria-hidden="true"
               >
@@ -143,7 +143,7 @@ export function AnalysisProgressScreen({ onComplete }: AnalysisProgressProps) {
 
       {done && (
         <div className="text-center">
-          <p className="text-base font-bold" style={{ color: '#D6B36A' }}>Storyboard ready</p>
+          <p className="text-base font-bold" style={{ color: '#C9A45A' }}>Storyboard ready</p>
           <p className="text-xs text-secondary-text mt-1">7 scenes · Noir Cinéma · 0:47</p>
         </div>
       )}
@@ -174,7 +174,7 @@ export function TranscriptReviewScreen({ onNext, onBack }: TranscriptReviewProps
         </div>
         <div
           className="px-3 py-1.5 rounded-lg text-xs font-semibold"
-          style={{ backgroundColor: 'rgba(214,179,106,0.1)', border: '1px solid rgba(214,179,106,0.25)', color: '#D6B36A' }}
+          style={{ backgroundColor: 'rgba(201,164,90,0.08)', border: '1px solid rgba(201,164,90,0.2)', color: '#C9A45A' }}
         >
           98% accurate
         </div>
@@ -182,13 +182,13 @@ export function TranscriptReviewScreen({ onNext, onBack }: TranscriptReviewProps
 
       {/* Audio playback bar */}
       <div
-        className="rounded-2xl border border-border p-4 flex flex-col gap-3"
-        style={{ backgroundColor: '#111318' }}
+        className="rounded-2xl p-4 flex flex-col gap-3"
+        style={{ backgroundColor: '#0E0F14', border: '1px solid #1C2029' }}
       >
         <div className="flex items-center gap-3">
           <button
             className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-            style={{ background: 'linear-gradient(135deg, #D64545, #B03030)' }}
+            style={{ backgroundColor: '#C43C3C' }}
             aria-label="Play audio"
           >
             <svg viewBox="0 0 24 24" className="w-4 h-4 text-white fill-current ml-0.5" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
@@ -214,7 +214,7 @@ export function TranscriptReviewScreen({ onNext, onBack }: TranscriptReviewProps
               'flex gap-3 p-4 rounded-xl border transition-all',
               editingId === line.id ? 'border-red-accent/40' : 'border-border'
             )}
-            style={{ backgroundColor: '#111318' }}
+            style={{ backgroundColor: '#0E0F14' }}
             role="listitem"
           >
             <span className="text-[11px] font-bold text-secondary-text tabular-nums w-8 shrink-0 pt-0.5">{line.start}</span>
@@ -247,7 +247,7 @@ export function TranscriptReviewScreen({ onNext, onBack }: TranscriptReviewProps
       <button
         onClick={onNext}
         className="w-full py-4 rounded-2xl font-bold text-white text-base flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-[0.98]"
-        style={{ background: 'linear-gradient(135deg, #D64545, #B03030)', boxShadow: '0 0 20px rgba(214,69,69,0.3)' }}
+        style={{ backgroundColor: '#C43C3C', boxShadow: '0 0 24px rgba(196,60,60,0.3)' }}
       >
         View Storyboard
         <ChevronRight className="w-5 h-5" />
