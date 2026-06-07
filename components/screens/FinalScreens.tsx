@@ -5,10 +5,11 @@ import {
   ChevronLeft, Play, Pause, Volume2, VolumeX, Maximize2,
   Download, Share2, CheckCircle2,
   User, Bell, Shield, CreditCard, Mic, Film, Zap,
-  ChevronRight, Moon, Globe, HelpCircle, LogOut, Star
+  ChevronRight, Moon, Globe, HelpCircle, Star
 } from 'lucide-react'
 import { VideoPreviewPhoneFrame } from '@/components/voxreel/VideoPreviewPhoneFrame'
 import { useCreateFlow } from '@/components/providers/CreateFlowProvider'
+import { SignOutButton } from '@/components/auth/SignOutButton'
 import { cn } from '@/lib/utils'
 
 /* ── Vertical 9:16 Preview Screen ── */
@@ -559,14 +560,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
       ))}
 
       {/* Sign out */}
-      <button
-        className="w-full py-4 rounded-2xl border border-border flex items-center justify-center gap-2 text-sm font-semibold transition-all hover:bg-muted"
-        style={{ backgroundColor: '#111318', color: '#D64545' }}
-        aria-label="Sign out"
-      >
-        <LogOut className="w-4 h-4" />
-        Sign Out
-      </button>
+      <SignOutButton />
 
       {/* Version */}
       <p className="text-center text-[11px] text-secondary-text">VoxReel v2.4.1 · Made for storytellers</p>

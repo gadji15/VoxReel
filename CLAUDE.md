@@ -27,8 +27,8 @@ This repo is a **frontend-only UI skeleton**, generated with v0.
   no AI calls, no rendering. Progress screens are animated simulations.
 - Navigation uses the **Next.js App Router** (real routes under `app/`). The old
   single-page `view` state machine has been removed. Route paths are centralized
-  in `lib/routes.ts`. The `/app/*` section is a frontend-only grouping — there is
-  **no auth gate yet**.
+  in `lib/routes.ts`. `/app/*` is now **auth-protected** by `middleware.ts`
+  (Supabase session required); its *content* is still mock-driven.
 - The create flow shares one typed draft via **`CreateFlowProvider`** (React
   Context + reducer) in `components/providers/`, wired in
   `app/app/create/layout.tsx`. It initializes from the featured mock project and
@@ -51,6 +51,13 @@ This repo is a **frontend-only UI skeleton**, generated with v0.
   code). Diagnostic route: `GET /api/health/supabase`. **Still mock-driven — no
   screen/provider reads from Supabase yet.** Never move the service role key into
   `NEXT_PUBLIC_*`; never import `lib/supabase/admin` in a client component.
+- **Supabase Auth is implemented.** `middleware.ts` refreshes the session and
+  protects `/app/*` (signed-out → `/login?next=…`; signed-in → away from
+  `/login`/`/signup`). Public: `/`, `/login`, `/signup`, `/auth/callback`,
+  `/api/health/supabase`. Auth UI in `components/auth/*`; pages `app/login`,
+  `app/signup`; code exchange in `app/auth/callback/route.ts`; sign-out in
+  Settings. Server helpers `getCurrentUser()`/`requireUser()` in
+  `lib/supabase/auth.ts`. **No project persistence / CRUD yet.**
 
 ## Current stack
 
@@ -113,7 +120,12 @@ app/                      # Next.js App Router
       page.tsx            # /app/create   → redirects to /app/create/upload
       upload, style, analysis, transcript, storyboard,
       scene/[sceneId], preview, rendering, export
+middleware.ts             # Supabase session refresh + /app/* auth gate
+app/
+  login/, signup/         # public auth pages
+  auth/callback/          # OAuth / email-confirmation code exchange
 components/
+  auth/                   # AuthCard, LoginForm, SignupForm, SignOutButton
   layout/                 # VoxReelAppShell (sidebar + bottom nav + main)
   providers/              # CreateFlowProvider (create-flow draft state)
   screens/                # full-screen views (one file may export several)

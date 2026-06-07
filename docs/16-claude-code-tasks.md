@@ -43,12 +43,20 @@
       `database.types.ts`; barrel `index.ts` (admin intentionally excluded).
       Diagnostic route `GET /api/health/supabase`. Service role stays
       server-only. **Still mock-driven — provider/screens unchanged.**
+- [x] Supabase Auth (email/password): `middleware.ts` session refresh + `/app/*`
+      protection (redirects to `/login?next=…`; bounces signed-in users from
+      `/login`/`/signup`). `app/login`, `app/signup`, `app/auth/callback`;
+      `components/auth/*` (AuthCard/LoginForm/SignupForm/SignOutButton);
+      sign-out wired into Settings; `lib/supabase/auth.ts`
+      (`getCurrentUser`/`requireUser`). **CreateFlowProvider still mock-driven;
+      no project persistence/CRUD.**
 
 ## Next recommended tasks
 
-- [ ] Auth: add a session middleware + minimal sign-in, and protect `/app/*`.
 - [ ] Project persistence: back `CreateFlowProvider` actions with Supabase
-      reads/writes (behind the same interface) once auth exists.
+      reads/writes (behind the same interface) now that auth exists.
+- [ ] Show the signed-in user's name/email in the app shell / Settings header
+      (replace the hardcoded "Alex Moreno").
 - [ ] Add a drag-to-reorder UI for the storyboard (reducer action already exists).
 - [ ] Define the real backend seam (Supabase + async jobs) that will replace the
       mock audio/analysis/render lifecycle behind the same provider actions.

@@ -4,13 +4,19 @@
  * Single source of truth for App Router paths. Use these instead of hardcoding
  * path strings so navigation stays consistent and refactor-safe.
  *
- * NOTE: `/app/*` routes are still **frontend-only** mock routes. There is no
- * auth gate yet — the "app" grouping is purely structural for now.
+ * NOTE: `/app/*` routes are now **auth-protected** by `middleware.ts` (Supabase
+ * session required). Their *content* is still mock-driven — there is no project
+ * persistence yet.
  */
 
 export const ROUTES = {
   /** Public landing page. */
   HOME: '/',
+
+  /** Auth (public). */
+  LOGIN: '/login',
+  SIGNUP: '/signup',
+  AUTH_CALLBACK: '/auth/callback',
 
   /** Authenticated-app home (dashboard). */
   APP: '/app',

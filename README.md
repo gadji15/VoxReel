@@ -120,8 +120,25 @@ A connection layer exists under [`lib/supabase/`](lib/supabase) (using
 - `database.types.ts` — typed `Database` for the schema.
 
 Health check: **`GET /api/health/supabase`** returns `{ ok, message, timestamp }`
-after a light `profiles` query. **The app is still mock-driven — none of the
-create flow reads from Supabase yet.**
+after a light `profiles` query.
+
+### Authentication (Supabase Auth)
+
+Email/password auth is wired up and **`/app/*` is protected**:
+
+- `middleware.ts` refreshes the Supabase session and redirects signed-out users
+  from `/app/*` to `/login?next=…`; signed-in users are bounced away from
+  `/login` and `/signup` to `/app`.
+- Public routes: `/`, `/login`, `/signup`, `/auth/callback`,
+  `/api/health/supabase`.
+- Pages: [`/login`](app/login/page.tsx), [`/signup`](app/signup/page.tsx);
+  email-confirmation/OAuth handled by [`/auth/callback`](app/auth/callback/route.ts).
+- Sign-out lives in **Settings** (`SignOutButton`). Server helpers:
+  `getCurrentUser()` / `requireUser()` in `lib/supabase/auth.ts` (server-only).
+
+> **The create flow is still 100% mock-driven** — auth gates the routes, but
+> `CreateFlowProvider` does not read/write Supabase yet, and there is no project
+> persistence.
 
 ## Current limitations
 
