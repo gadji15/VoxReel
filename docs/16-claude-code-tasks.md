@@ -61,11 +61,19 @@
       `/app/create/storyboard?projectId=…`. Settings shows the real user.
       **Create flow still mock-driven; `projectId` only carried in the URL.**
 
+- [x] Create-flow hydration + draft persistence: `CreateFlowProvider` hydrates
+      from `?projectId=<uuid>` via `CreateFlowProjectBridge` (local-first, else
+      `getCreateFlowDraftAction`; invalid → redirect to /app/projects).
+      `lib/services/create-flow.service.ts` (server-only) + `app/app/create/actions.ts`
+      persist settings/transcript/scenes/captions (REPLACE strategy);
+      `lib/mappers/create-flow.mapper.ts` maps rows ↔ state; `withProjectId`
+      preserves the param across steps; localStorage is project-scoped. Content
+      is still mock (no real audio/transcription/AI/clips/rendering).
+
 ## Next recommended tasks
 
-- [ ] Hydrate `CreateFlowProvider` from Supabase using the `?projectId=…` param
-      (load project + scenes/transcript; persist edits) — behind the same
-      provider interface so the UI doesn't change.
+- [ ] Real audio upload: replace the mock `setAudioMetadata` with a Supabase
+      Storage upload (bucket `audio-files/{user}/{project}/…`) + `audio_files` row.
 - [ ] Add archive/delete affordances to the project cards (actions already exist).
 - [ ] Add a drag-to-reorder UI for the storyboard (reducer action already exists).
 - [ ] Define the real backend seam (Supabase + async jobs) that will replace the

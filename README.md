@@ -157,9 +157,30 @@ signed-in user:
   Empty state shown when a real user has no projects.
 - Settings shows the **authenticated user's** email / name.
 
-> The **create flow remains mock-driven**: `projectId` is carried in the URL
-> (`?projectId=…`) for a future task to hydrate `CreateFlowProvider` from
-> Supabase. No audio upload / transcription / rendering yet.
+### Create-flow hydration & draft persistence
+
+`CreateFlowProvider` now **hydrates from a real project** and persists draft edits:
+
+- `lib/services/create-flow.service.ts` (server-only) — load a project's draft +
+  persist settings / transcript / scenes / captions (REPLACE strategy, no dupes).
+- `lib/mappers/create-flow.mapper.ts` — Supabase rows ↔ provider state.
+- `app/app/create/actions.ts` — `getCreateFlowDraftAction`,
+  `updateProjectSettingsAction`, `saveTranscriptAction`, `saveScenesAction`,
+  `saveAnalysisAction`.
+- A client bridge (`CreateFlowProjectBridge`, mounted in `app/app/create/layout.tsx`)
+  reads `?projectId=…` and hydrates the provider (local draft first, else server;
+  invalid/not-owned → redirect to `/app/projects`).
+- `projectId` is **preserved across every create step** via
+  `lib/navigation/create-flow-url.ts` (`withProjectId`).
+- localStorage drafts are now **project-scoped** (`voxreel:create-flow-draft:<id>`),
+  so drafts never mix between projects.
+
+Persistence save points (mock content, real persistence): style settings save
+live; analysis completion replaces transcript+scenes+captions; leaving the
+transcript saves transcript; leaving the storyboard / scene editor saves scenes.
+
+> Still **mock content** end-to-end: no real audio upload, transcription, AI,
+> stock-clip, or rendering. Those remain the next milestones.
 
 ## Current limitations
 

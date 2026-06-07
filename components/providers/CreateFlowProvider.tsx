@@ -37,8 +37,14 @@ import {
   mockTranscript,
   mockCaptions,
 } from '@/lib/mock-data'
+import { isRealProjectId } from '@/lib/navigation/create-flow-url'
+import { updateProjectSettingsAction } from '@/app/app/create/actions'
 
-const STORAGE_KEY = 'voxreel:create-flow-draft'
+/** localStorage key is project-aware so drafts never mix between projects. */
+const STORAGE_KEY_BASE = 'voxreel:create-flow-draft'
+function storageKeyFor(projectId: string | null | undefined): string {
+  return projectId ? `${STORAGE_KEY_BASE}:${projectId}` : STORAGE_KEY_BASE
+}
 
 /* ──────────────────────────────────────────────────────────────────────────
  * Initial / mock-derived state
@@ -264,9 +270,13 @@ function reducer(state: CreateFlowState, action: Action): CreateFlowState {
 
 export interface CreateFlowContextValue {
   state: CreateFlowState
+  /** The real Supabase project id when hydrated from one, else `null` (mock). */
+  projectId: string | null
   // selectors
   getScene: (id: number | null | undefined) => Scene | undefined
   selectedScene: Scene | undefined
+  // hydration
+  hydrateDraft: (draft: CreateFlowState) => void
   // actions
   setAudioMetadata: (audio: Partial<AudioMetadata>) => void
   setLanguage: (language: string) => void
@@ -300,10 +310,10 @@ const CreateFlowContext = createContext<CreateFlowContextValue | null>(null)
  * Safe localStorage helpers (best-effort, SSR-safe)
  * ────────────────────────────────────────────────────────────────────────── */
 
-function loadDraft(): CreateFlowState | null {
+function loadDraft(key: string): CreateFlowState | null {
   if (typeof window === 'undefined') return null
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
+    const raw = window.localStorage.getItem(key)
     if (!raw) return null
     const parsed = JSON.parse(raw)
     // Minimal shape guard — if anything looks off, ignore the stored draft.
@@ -314,60 +324,105 @@ function loadDraft(): CreateFlowState | null {
   }
 }
 
-function saveDraft(state: CreateFlowState): void {
+function saveDraft(key: string, state: CreateFlowState): void {
   if (typeof window === 'undefined') return
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+    window.localStorage.setItem(key, JSON.stringify(state))
   } catch {
     /* storage full / disabled — ignore, app keeps working */
   }
 }
 
-function clearDraft(): void {
+function clearDraft(key: string): void {
   if (typeof window === 'undefined') return
   try {
-    window.localStorage.removeItem(STORAGE_KEY)
+    window.localStorage.removeItem(key)
   } catch {
     /* ignore */
   }
+}
+
+/** Read a persisted draft for a specific project id (used by the URL bridge). */
+export function loadLocalDraftForProject(projectId: string): CreateFlowState | null {
+  const draft = loadDraft(storageKeyFor(projectId))
+  return draft && draft.currentProjectId === projectId ? draft : null
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
  * Provider
  * ────────────────────────────────────────────────────────────────────────── */
 
-export function CreateFlowProvider({ children }: { children: ReactNode }) {
+export function CreateFlowProvider({
+  children,
+  initialDraft,
+}: {
+  children: ReactNode
+  /** Optional server-provided draft. When present it seeds the initial state. */
+  initialDraft?: CreateFlowState | null
+}) {
   // Deterministic initial state on both server and client (avoids hydration
   // mismatch); the persisted draft is loaded after mount.
-  const [state, dispatch] = useReducer(reducer, undefined, buildMockDraft)
+  const [state, dispatch] = useReducer(
+    reducer,
+    undefined,
+    () => initialDraft ?? buildMockDraft()
+  )
 
-  // Load persisted draft once on mount (client only).
+  // The real project id (only when hydrated from a Supabase project).
+  const projectId = isRealProjectId(state.currentProjectId) ? state.currentProjectId : null
+
+  // Load persisted draft once on mount (client only), scoped to the current
+  // project's key so drafts never bleed across projects.
   useEffect(() => {
-    const stored = loadDraft()
-    if (stored) dispatch({ type: 'HYDRATE', state: stored })
+    const stored = loadDraft(storageKeyFor(state.currentProjectId))
+    if (stored && stored.currentProjectId === state.currentProjectId) {
+      dispatch({ type: 'HYDRATE', state: stored })
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Persist on every change (best-effort).
+  // Persist on every change (best-effort), keyed by the current project.
   useEffect(() => {
-    saveDraft(state)
+    saveDraft(storageKeyFor(state.currentProjectId), state)
   }, [state])
 
   const value = useMemo<CreateFlowContextValue>(() => {
     const getScene = (id: number | null | undefined) =>
       id == null ? undefined : state.scenes.find((s) => s.id === id)
 
+    // Fire-and-forget settings persistence (only for a real project).
+    const realId = isRealProjectId(state.currentProjectId) ? state.currentProjectId : null
+    const persistSettings = (input: Parameters<typeof updateProjectSettingsAction>[1]) => {
+      if (realId) {
+        void updateProjectSettingsAction(realId, input).catch(() => {
+          /* best-effort; local state already updated */
+        })
+      }
+    }
+
     return {
       state,
+      projectId: realId,
       getScene,
       selectedScene: getScene(state.selectedSceneId),
+      hydrateDraft: (draft) => dispatch({ type: 'HYDRATE', state: draft }),
       setAudioMetadata: (audio) => dispatch({ type: 'SET_AUDIO_METADATA', audio }),
-      setLanguage: (language) => dispatch({ type: 'SET_LANGUAGE', language }),
-      setStoryStyle: (storyStyle) => dispatch({ type: 'SET_STORY_STYLE', storyStyle }),
-      setVisualSource: (visualSource) =>
-        dispatch({ type: 'SET_VISUAL_SOURCE', visualSource }),
-      setCaptionStyle: (captionStyle) =>
-        dispatch({ type: 'SET_CAPTION_STYLE', captionStyle }),
+      setLanguage: (language) => {
+        dispatch({ type: 'SET_LANGUAGE', language })
+        persistSettings({ language })
+      },
+      setStoryStyle: (storyStyle) => {
+        dispatch({ type: 'SET_STORY_STYLE', storyStyle })
+        persistSettings({ storyStyle })
+      },
+      setVisualSource: (visualSource) => {
+        dispatch({ type: 'SET_VISUAL_SOURCE', visualSource })
+        persistSettings({ visualSource })
+      },
+      setCaptionStyle: (captionStyle) => {
+        dispatch({ type: 'SET_CAPTION_STYLE', captionStyle })
+        persistSettings({ captionStyle })
+      },
       setTranscript: (transcript) => dispatch({ type: 'SET_TRANSCRIPT', transcript }),
       updateTranscriptLine: (id, text) =>
         dispatch({ type: 'UPDATE_TRANSCRIPT_LINE', id, text }),
@@ -393,7 +448,7 @@ export function CreateFlowProvider({ children }: { children: ReactNode }) {
       updateProjectTitle: (title) =>
         dispatch({ type: 'UPDATE_PROJECT_TITLE', title }),
       resetCreateFlow: () => {
-        clearDraft()
+        clearDraft(storageKeyFor(state.currentProjectId))
         dispatch({ type: 'RESET' })
       },
       hydrateFromMockProject: () => dispatch({ type: 'HYDRATE_FROM_MOCK' }),

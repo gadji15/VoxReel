@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CheckCircle2, Pencil, ChevronRight } from 'lucide-react'
 import { useCreateFlow } from '@/components/providers/CreateFlowProvider'
-import { mockScenes, mockTranscript } from '@/lib/mock-data'
+import { mockScenes, mockTranscript, mockCaptions } from '@/lib/mock-data'
+import { saveAnalysisAction, saveTranscriptAction } from '@/app/app/create/actions'
 import { cn } from '@/lib/utils'
 
 interface AnalysisProgressProps {
@@ -20,7 +21,10 @@ const analysisSteps = [
 ]
 
 export function AnalysisProgressScreen({ onComplete }: AnalysisProgressProps) {
-  const { setTranscript, setScenes } = useCreateFlow()
+  const { setTranscript, setScenes, projectId } = useCreateFlow()
+  // Keep the latest projectId available inside the run-once effect closure.
+  const projectIdRef = useRef(projectId)
+  projectIdRef.current = projectId
   const [currentStep, setCurrentStep] = useState(0)
   const [progress, setProgress] = useState(0)
   const [done, setDone] = useState(false)
@@ -34,8 +38,18 @@ export function AnalysisProgressScreen({ onComplete }: AnalysisProgressProps) {
       if (stepIdx >= analysisSteps.length) {
         // Mock analysis finished — populate the shared draft from mock data so
         // the storyboard/transcript steps read coherent state. (No real STT/AI.)
-        setTranscript(mockTranscript.map((l) => ({ ...l })))
-        setScenes(mockScenes.map((s) => ({ ...s })))
+        const transcript = mockTranscript.map((l) => ({ ...l }))
+        const scenes = mockScenes.map((s) => ({ ...s }))
+        const captions = mockCaptions.map((c) => ({ ...c }))
+        setTranscript(transcript)
+        setScenes(scenes)
+        // Persist to Supabase for a real project (REPLACE strategy — no dupes).
+        const pid = projectIdRef.current
+        if (pid) {
+          void saveAnalysisAction(pid, { transcript, scenes, captions }).catch(() => {
+            /* best-effort; local draft already updated */
+          })
+        }
         setProgress(100)
         setDone(true)
         setTimeout(onComplete, 1200)
@@ -164,12 +178,20 @@ interface TranscriptReviewProps {
 }
 
 export function TranscriptReviewScreen({ onNext, onBack }: TranscriptReviewProps) {
-  const { state, updateTranscriptLine } = useCreateFlow()
+  const { state, updateTranscriptLine, projectId } = useCreateFlow()
   const [editingId, setEditingId] = useState<number | null>(null)
   const lines = state.transcript
 
   const updateLine = (id: number, text: string) => {
     updateTranscriptLine(id, text)
+  }
+
+  // Save edits to Supabase when leaving the transcript step (real project only).
+  const handleNext = () => {
+    if (projectId) {
+      void saveTranscriptAction(projectId, state.transcript).catch(() => {})
+    }
+    onNext()
   }
 
   return (
@@ -252,7 +274,7 @@ export function TranscriptReviewScreen({ onNext, onBack }: TranscriptReviewProps
       </div>
 
       <button
-        onClick={onNext}
+        onClick={handleNext}
         className="w-full py-4 rounded-2xl font-bold text-white text-base flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-[0.98]"
         style={{ backgroundColor: '#C43C3C', boxShadow: '0 0 24px rgba(196,60,60,0.3)' }}
       >

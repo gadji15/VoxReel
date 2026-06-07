@@ -1,16 +1,18 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { RenderProgressScreen } from '@/components/screens/FinalScreens'
 import { ROUTES } from '@/lib/routes'
+import { withProjectId } from '@/lib/navigation/create-flow-url'
 
 /** Create · render progress (route: `/app/create/rendering`). */
 export default function CreateRenderingPage() {
   const router = useRouter()
+  const projectId = useSearchParams().get('projectId')
   return (
     <RenderProgressScreen
-      onComplete={() => router.push(ROUTES.EXPORT)}
-      onBack={() => router.push(ROUTES.PREVIEW)}
+      onComplete={() => router.push(withProjectId(ROUTES.EXPORT, projectId))}
+      onBack={() => router.push(withProjectId(ROUTES.PREVIEW, projectId))}
     />
   )
 }

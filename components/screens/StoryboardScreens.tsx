@@ -11,6 +11,7 @@ import { BottomSheet } from '@/components/voxreel/BottomSheet'
 import { VideoPreviewPhoneFrame } from '@/components/voxreel/VideoPreviewPhoneFrame'
 import { mockMotionPresets, mockTransitionPresets } from '@/lib/mock-data'
 import { useCreateFlow } from '@/components/providers/CreateFlowProvider'
+import { saveScenesAction } from '@/app/app/create/actions'
 import { cn } from '@/lib/utils'
 
 /* ── Storyboard Screen (swipeable scenes list) ── */
@@ -21,13 +22,21 @@ interface StoryboardScreenProps {
 }
 
 export function StoryboardScreen({ onSceneSelect, onNext, onBack }: StoryboardScreenProps) {
-  const { state, setSelectedSceneId, addScene } = useCreateFlow()
+  const { state, setSelectedSceneId, addScene, projectId } = useCreateFlow()
   const scenes = state.scenes
   const activeScene = state.selectedSceneId ?? scenes[0]?.id ?? null
 
   const handleScene = (id: number) => {
     setSelectedSceneId(id)
     onSceneSelect(id)
+  }
+
+  // Persist scenes (add/delete/edits) when advancing to preview (real project).
+  const handleNext = () => {
+    if (projectId) {
+      void saveScenesAction(projectId, state.scenes).catch(() => {})
+    }
+    onNext()
   }
 
   const sceneCount = scenes.length
@@ -47,7 +56,7 @@ export function StoryboardScreen({ onSceneSelect, onNext, onBack }: StoryboardSc
           </div>
         </div>
         <button
-          onClick={onNext}
+          onClick={handleNext}
           className="px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
           style={{ background: 'linear-gradient(135deg, #D64545, #B03030)' }}
         >
@@ -125,6 +134,8 @@ const suggestedClips = [
 
 export function SceneDetailEditor({ sceneId = 4, onBack, onNext }: SceneDetailEditorProps) {
   const {
+    state,
+    projectId,
     getScene,
     updateScene,
     updateSceneMotion,
@@ -134,6 +145,21 @@ export function SceneDetailEditor({ sceneId = 4, onBack, onNext }: SceneDetailEd
     unlockScene,
   } = useCreateFlow()
   const scene = getScene(sceneId)
+
+  // Persist the latest scene edits when leaving the editor (real project only).
+  const persistScenes = () => {
+    if (projectId) {
+      void saveScenesAction(projectId, state.scenes).catch(() => {})
+    }
+  }
+  const handleDone = () => {
+    persistScenes()
+    onNext()
+  }
+  const handleBack = () => {
+    persistScenes()
+    onBack()
+  }
 
   const [clipSheet, setClipSheet] = useState(false)
   const [captionSheet, setCaptionSheet] = useState(false)
@@ -198,7 +224,7 @@ export function SceneDetailEditor({ sceneId = 4, onBack, onNext }: SceneDetailEd
     <div className="flex flex-col gap-5 pb-24 lg:pb-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <button onClick={onBack} className="w-9 h-9 flex items-center justify-center rounded-xl border border-border hover:bg-muted transition-colors" aria-label="Go back to storyboard">
+        <button onClick={handleBack} className="w-9 h-9 flex items-center justify-center rounded-xl border border-border hover:bg-muted transition-colors" aria-label="Go back to storyboard">
           <ChevronLeft className="w-4 h-4 text-foreground" />
         </button>
         <div className="flex-1 min-w-0">
@@ -208,7 +234,7 @@ export function SceneDetailEditor({ sceneId = 4, onBack, onNext }: SceneDetailEd
           <h1 className="text-xl font-bold text-foreground truncate">Scene Editor</h1>
         </div>
         <button
-          onClick={onNext}
+          onClick={handleDone}
           className="px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 shrink-0"
           style={{ background: 'linear-gradient(135deg, #D64545, #B03030)' }}
         >

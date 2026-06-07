@@ -31,10 +31,19 @@ This repo is a **frontend-only UI skeleton**, generated with v0.
   (Supabase session required); its *content* is still mock-driven.
 - The create flow shares one typed draft via **`CreateFlowProvider`** (React
   Context + reducer) in `components/providers/`, wired in
-  `app/app/create/layout.tsx`. It initializes from the featured mock project and
-  persists to `localStorage` (`voxreel:create-flow-draft`, best-effort, SSR-safe).
-  This is **draft UI state only** — still no backend, upload, transcription, AI,
-  or rendering.
+  `app/app/create/layout.tsx`. localStorage is now **project-scoped**
+  (`voxreel:create-flow-draft:<projectId>`), so drafts never mix.
+- **Create-flow ↔ Supabase hydration & draft persistence.** With a real
+  `?projectId=<uuid>`, the provider hydrates from the DB: `CreateFlowProjectBridge`
+  (in the create layout, under a Suspense boundary) reads the URL param and loads
+  the draft (local cache first, else `getCreateFlowDraftAction`; invalid/not-owned
+  → redirect to `/app/projects`). `projectId` is preserved across every step via
+  `lib/navigation/create-flow-url.ts` (`withProjectId`). Persistence (server-only
+  `lib/services/create-flow.service.ts` + `app/app/create/actions.ts`,
+  REPLACE strategy): style settings save live; analysis completion saves
+  transcript+scenes+captions; leaving transcript saves transcript; leaving
+  storyboard/scene editor saves scenes. **Content is still mock** (no real audio
+  upload, transcription, AI, stock-clip, or rendering).
 - Emotion colors come from a single source of truth: `lib/emotions.ts`
   (`getEmotionColor()` / `emotionColorMap`). Do not re-inline emotion hex values.
 - A first **Supabase schema** exists at
@@ -172,8 +181,9 @@ public/                   # static assets
 
 - `useCreateFlow()` (from `components/providers/CreateFlowProvider`) exposes the
   shared draft + typed actions (`setStoryStyle`, `updateScene`, `addScene`,
-  `lockScene`, `replaceSceneClip`, `resetCreateFlow`, …). Only usable **inside
-  `/app/create/*`** (the provider does not wrap Home/Projects/Settings).
+  `lockScene`, `replaceSceneClip`, `resetCreateFlow`, …) plus `projectId` (the
+  real Supabase id, or `null` in mock mode) and `hydrateDraft()`. Only usable
+  **inside `/app/create/*`** (the provider does not wrap Home/Projects/Settings).
 - The **full create-flow lifecycle is now connected** (still 100% mock):
   - AudioUpload → `setAudioMetadata` (mock file metadata) on continue.
   - StyleSelection → `storyStyle`, `language`, `visualSource`, `captionStyle`.
