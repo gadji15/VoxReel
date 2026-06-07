@@ -70,10 +70,18 @@
       preserves the param across steps; localStorage is project-scoped. Content
       is still mock (no real audio/transcription/AI/clips/rendering).
 
+- [x] Real audio upload: browser → Supabase Storage (`audio-files/{user}/{project}/
+      original.ext`) via `lib/upload/audio-upload.ts` (validate mime/ext, ≤50 MB,
+      5–180s, client duration). `lib/services/audio.service.ts` +
+      `app/app/create/audio/actions.ts` upsert `audio_files` and set
+      `projects.status='audio_uploaded'`; `getCreateFlowDraft` hydrates audio.
+      Mock fallback preserved when no `projectId`. Transcription still mock.
+
 ## Next recommended tasks
 
-- [ ] Real audio upload: replace the mock `setAudioMetadata` with a Supabase
-      Storage upload (bucket `audio-files/{user}/{project}/…`) + `audio_files` row.
+- [ ] Real transcription: kick off a transcription job from the uploaded
+      `audio_files` object and persist `transcript_segments` (replaces the mock
+      transcript seeded at analysis).
 - [ ] Add archive/delete affordances to the project cards (actions already exist).
 - [ ] Add a drag-to-reorder UI for the storyboard (reducer action already exists).
 - [ ] Define the real backend seam (Supabase + async jobs) that will replace the

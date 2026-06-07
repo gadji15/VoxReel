@@ -42,8 +42,17 @@ This repo is a **frontend-only UI skeleton**, generated with v0.
   `lib/services/create-flow.service.ts` + `app/app/create/actions.ts`,
   REPLACE strategy): style settings save live; analysis completion saves
   transcript+scenes+captions; leaving transcript saves transcript; leaving
-  storyboard/scene editor saves scenes. **Content is still mock** (no real audio
-  upload, transcription, AI, stock-clip, or rendering).
+  storyboard/scene editor saves scenes.
+- **Real audio upload.** `AudioUploadScreen` (with a `projectId`) validates +
+  uploads the file from the browser to the private `audio-files` bucket
+  (`{user_id}/{project_id}/original.{ext}`) via the anon client, then
+  `saveAudioMetadataAction` writes the `audio_files` row and sets
+  `projects.status='audio_uploaded'`. Helpers: `lib/upload/audio-upload.ts`
+  (validate/duration/upload), `lib/services/audio.service.ts` (server-only),
+  `app/app/create/audio/actions.ts`. `getCreateFlowDraft` hydrates the audio row.
+  No `projectId` → mock fallback. **Still mock: recording, transcription, AI,
+  stock-clip, rendering.** Never use the service role / `lib/supabase/admin` for
+  uploads.
 - Emotion colors come from a single source of truth: `lib/emotions.ts`
   (`getEmotionColor()` / `emotionColorMap`). Do not re-inline emotion hex values.
 - A first **Supabase schema** exists at

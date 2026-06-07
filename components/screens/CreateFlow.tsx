@@ -1,10 +1,19 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Mic, Upload, ChevronLeft, ChevronRight, Square, Play, Pause, Check, X } from 'lucide-react'
+import { useState, useEffect, useRef, type ChangeEvent, type DragEvent } from 'react'
+import { Mic, Upload, ChevronLeft, ChevronRight, Square, Play, Loader2, Check, X } from 'lucide-react'
 import { AudioWaveform, StaticWaveform } from '@/components/voxreel/AudioWaveform'
 import { mockStyles } from '@/lib/mock-data'
 import { useCreateFlow } from '@/components/providers/CreateFlowProvider'
+import { createSupabaseBrowserClient } from '@/lib/supabase/browser'
+import { saveAudioMetadataAction } from '@/app/app/create/audio/actions'
+import {
+  validateAudioFile,
+  validateAudioDuration,
+  getAudioDurationSeconds,
+  uploadAudioFile,
+  formatBytes,
+} from '@/lib/upload/audio-upload'
 import { cn } from '@/lib/utils'
 
 interface CreateFlowProps {
@@ -15,15 +24,98 @@ interface CreateFlowProps {
 
 /* ── Step 1: Audio Upload / Record ── */
 export function AudioUploadScreen({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
-  const { setAudioMetadata } = useCreateFlow()
+  const { setAudioMetadata, projectId } = useCreateFlow()
   const [mode, setMode] = useState<'record' | 'upload'>('record')
   const [isRecording, setIsRecording] = useState(false)
   const [recordingSeconds, setRecordingSeconds] = useState(0)
   const [hasRecording, setHasRecording] = useState(false)
 
-  // Persist mock audio metadata into the shared draft, then advance.
-  // (Frontend-only — no real file is read or uploaded.)
+  // Real upload state (used when a real projectId is present).
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const openFilePicker = () => fileInputRef.current?.click()
+
+  const pickFile = (file: File | undefined | null) => {
+    if (!file) return
+    setError(null)
+    const v = validateAudioFile(file)
+    if (!v.ok) {
+      setError(v.error ?? 'Unsupported file.')
+      setSelectedFile(null)
+      return
+    }
+    setSelectedFile(file)
+  }
+
+  const onFileChange = (e: ChangeEvent<HTMLInputElement>) => pickFile(e.target.files?.[0])
+  const onDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    pickFile(e.dataTransfer.files?.[0])
+  }
+
+  // Real upload: browser → Supabase Storage, then persist metadata, then advance.
+  const runUpload = async () => {
+    if (!projectId || !selectedFile) return
+    const v = validateAudioFile(selectedFile)
+    if (!v.ok) {
+      setError(v.error ?? 'Unsupported file.')
+      return
+    }
+    setUploading(true)
+    setError(null)
+    try {
+      const durationSeconds = await getAudioDurationSeconds(selectedFile)
+      const dv = validateAudioDuration(durationSeconds)
+      if (!dv.ok) {
+        setError(dv.error ?? 'Invalid audio length.')
+        setUploading(false)
+        return
+      }
+
+      const supabase = createSupabaseBrowserClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) {
+        setError('Your session has expired. Please sign in again.')
+        setUploading(false)
+        return
+      }
+
+      const result = await uploadAudioFile({
+        file: selectedFile,
+        projectId,
+        userId: user.id,
+        durationSeconds,
+      })
+      const saved = await saveAudioMetadataAction(projectId, {
+        fileName: result.fileName,
+        storageBucket: result.storageBucket,
+        storagePath: result.storagePath,
+        mimeType: result.mimeType,
+        sizeBytes: result.sizeBytes,
+        durationSeconds: result.durationSeconds,
+        status: result.status,
+      })
+      setAudioMetadata(saved)
+      onNext()
+    } catch (e) {
+      // Keep the selected file; stay on the screen.
+      setError(e instanceof Error ? e.message : 'Upload failed. Please try again.')
+      setUploading(false)
+    }
+  }
+
   const handleContinue = () => {
+    // Real upload only when we have a real project AND a chosen file.
+    if (projectId && mode === 'upload' && selectedFile) {
+      void runUpload()
+      return
+    }
+    // Mock fallback (record mode, no project, or no file) — keeps dev flow working.
     setAudioMetadata({
       fileName: 'midnight-betrayal-voice.m4a',
       duration: '1:18', // 78s
@@ -147,7 +239,20 @@ export function AudioUploadScreen({ onNext, onBack }: { onNext: () => void; onBa
         </div>
       ) : (
         <div className="flex flex-col gap-4">
+          {/* Hidden native file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="audio/*,.mp3,.m4a,.wav,.webm,.ogg,.mp4"
+            className="hidden"
+            onChange={onFileChange}
+            aria-hidden="true"
+          />
+
           <div
+            onClick={openFilePicker}
+            onDrop={onDrop}
+            onDragOver={(e) => e.preventDefault()}
             className="rounded-2xl border-2 border-dashed border-border flex flex-col items-center justify-center gap-5 py-14 transition-colors hover:border-red-accent/40 cursor-pointer"
             style={{ backgroundColor: '#111318' }}
             role="button"
@@ -163,9 +268,11 @@ export function AudioUploadScreen({ onNext, onBack }: { onNext: () => void; onBa
             </div>
             <div className="text-center">
               <p className="text-sm font-semibold text-foreground">Drop audio file here</p>
-              <p className="text-xs text-secondary-text mt-1">MP3, WAV, M4A — up to 200MB</p>
+              <p className="text-xs text-secondary-text mt-1">MP3, M4A, WAV, WEBM, OGG — up to 50MB</p>
             </div>
             <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); openFilePicker() }}
               className="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90"
               style={{ backgroundColor: '#252A33', color: '#F4F1EA', border: '1px solid #353D4A' }}
             >
@@ -173,40 +280,77 @@ export function AudioUploadScreen({ onNext, onBack }: { onNext: () => void; onBa
             </button>
           </div>
 
-          {/* Demo file */}
-          <div
-            className="flex items-center gap-3 p-4 rounded-xl border border-border"
-            style={{ backgroundColor: '#111318' }}
-            role="listitem"
-          >
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: '#1A1E26' }} aria-hidden="true">
-              <Mic className="w-4 h-4 text-secondary-text" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-foreground truncate">midnight-betrayal.mp3</p>
-              <p className="text-xs text-secondary-text">1:18 · 3.4 MB</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <button aria-label="Play preview">
-                <Play className="w-4 h-4 text-secondary-text hover:text-foreground transition-colors" />
-              </button>
-              <button aria-label="Remove file">
+          {/* Selected file (real) OR demo placeholder (mock) */}
+          {selectedFile ? (
+            <div
+              className="flex items-center gap-3 p-4 rounded-xl border border-border"
+              style={{ backgroundColor: '#111318' }}
+              role="listitem"
+            >
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: '#1A1E26' }} aria-hidden="true">
+                <Mic className="w-4 h-4 text-secondary-text" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground truncate">{selectedFile.name}</p>
+                <p className="text-xs text-secondary-text">{formatBytes(selectedFile.size)}</p>
+              </div>
+              <button
+                onClick={() => { setSelectedFile(null); setError(null) }}
+                disabled={uploading}
+                aria-label="Remove file"
+              >
                 <X className="w-4 h-4 text-secondary-text hover:text-red-accent transition-colors" />
               </button>
             </div>
-          </div>
+          ) : (
+            <div
+              className="flex items-center gap-3 p-4 rounded-xl border border-border"
+              style={{ backgroundColor: '#111318' }}
+              role="listitem"
+            >
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: '#1A1E26' }} aria-hidden="true">
+                <Mic className="w-4 h-4 text-secondary-text" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground truncate">midnight-betrayal.mp3</p>
+                <p className="text-xs text-secondary-text">1:18 · 3.4 MB · sample</p>
+              </div>
+              <Play className="w-4 h-4 text-secondary-text shrink-0" aria-hidden="true" />
+            </div>
+          )}
         </div>
+      )}
+
+      {/* Upload error */}
+      {error && (
+        <p
+          className="text-sm rounded-xl px-3 py-2.5"
+          style={{ backgroundColor: 'rgba(214,69,69,0.1)', border: '1px solid rgba(214,69,69,0.25)', color: '#E98080' }}
+          role="alert"
+        >
+          {error}
+        </p>
       )}
 
       {/* CTA */}
       {(hasRecording || mode === 'upload') && (
         <button
           onClick={handleContinue}
-          className="w-full py-4 rounded-2xl font-bold text-white text-base flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-[0.98]"
+          disabled={uploading}
+          className="w-full py-4 rounded-2xl font-bold text-white text-base flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
           style={{ background: 'linear-gradient(135deg, #D64545, #B03030)', boxShadow: '0 0 20px rgba(214,69,69,0.3)' }}
         >
-          Continue to Style
-          <ChevronRight className="w-5 h-5" />
+          {uploading ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              Uploading…
+            </>
+          ) : (
+            <>
+              Continue to Style
+              <ChevronRight className="w-5 h-5" />
+            </>
+          )}
         </button>
       )}
     </div>

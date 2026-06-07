@@ -60,7 +60,7 @@ export async function getCreateFlowDraft(projectId: string): Promise<DbDraftInpu
 
   if (error || !project) return null
 
-  const [segmentsRes, scenesRes, captionsRes, exportRes] = await Promise.all([
+  const [segmentsRes, scenesRes, captionsRes, exportRes, audioRes] = await Promise.all([
     supabase
       .from('transcript_segments')
       .select('*')
@@ -87,6 +87,14 @@ export async function getCreateFlowDraft(projectId: string): Promise<DbDraftInpu
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from('audio_files')
+      .select('*')
+      .eq('project_id', projectId)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ])
 
   return {
@@ -95,6 +103,7 @@ export async function getCreateFlowDraft(projectId: string): Promise<DbDraftInpu
     scenes: scenesRes.data ?? [],
     captions: captionsRes.data ?? [],
     exportRow: exportRes.data ?? null,
+    audio: audioRes.data ?? null,
   }
 }
 

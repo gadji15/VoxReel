@@ -1,29 +1,36 @@
 # 06 — Audio Upload Spec
 
-> Status: **Placeholder.** Upload is **UI-only** today (`CreateFlow` shows a mock
-> file). No real upload, recording, or storage is implemented.
+> Status: **Implemented (upload).** Real file **upload** to Supabase Storage +
+> `audio_files` metadata is live. **Recording** is still mock, and
+> **transcription** is not implemented yet.
 
-## Scope
+## Implemented
 
-Define how a creator provides their voice story: file upload and/or in-app
-recording, validation, and storage.
+- **Upload (browser → Storage):** `lib/upload/audio-upload.ts` validates the
+  file, reads its duration, and uploads via the **anon browser client** to the
+  private bucket `audio-files` at `{user_id}/{project_id}/original.{ext}`
+  (`upsert: true`). The storage RLS policy (migration 001) requires the first
+  path segment to be `auth.uid()`.
+- **Metadata (server):** `lib/services/audio.service.ts` (server-only) +
+  `app/app/create/audio/actions.ts` upsert the `audio_files` row (REPLACE
+  strategy — one per project) and set `projects.status = 'audio_uploaded'`
+  (+ `duration_seconds` when known).
+- **Provider:** `AudioUploadScreen` calls `setAudioMetadata` with the real
+  metadata, then continues to `/app/create/style?projectId=…`. Hydration:
+  `getCreateFlowDraft` now includes the `audio_files` row.
+- **Validation:** mime ∈ {mpeg, mp3, mp4, m4a, x-m4a, wav, webm, ogg};
+  ext ∈ {mp3, m4a, wav, webm, ogg, mp4}; max **50 MB**; duration **5–180s**
+  (unknown duration is allowed and stored as `null`).
 
-## Requirements (draft)
+## Mock fallback (unchanged)
 
-- Accept common audio formats (mp3, m4a, wav).
-- Max file size / max duration limits (target reels are 60–90s).
-- In-browser recording option (MediaRecorder) for mobile.
-- Client-side validation + progress UI (the mock UI already exists).
-- Storage via Supabase Storage; return an asset reference for the pipeline.
+With **no** `projectId` (dev mode) the screen keeps the previous mock behavior.
+**Recording** mode is still mock (no MediaRecorder upload yet).
 
-## Edge cases
+## Not implemented / follow-ups
 
-> TODO: silence/very short audio, unsupported codecs, network interruption,
-> background noise warnings.
-
-## TODO
-
-- [ ] Define accepted formats + limits.
-- [ ] Define storage bucket layout and naming.
-- [ ] Define the upload → transcription handoff.
-- [ ] Wire the existing `AudioUploadScreen` UI to real upload (later).
+- [ ] Real in-app recording (MediaRecorder → upload).
+- [ ] Storage object cleanup on project/audio delete (DB row is removed today).
+- [ ] Upload progress percentage (currently a spinner/disabled state).
+- [ ] **Transcription** of the uploaded file (next milestone) — replaces the
+      mock transcript seeded at analysis.

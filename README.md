@@ -179,8 +179,23 @@ Persistence save points (mock content, real persistence): style settings save
 live; analysis completion replaces transcript+scenes+captions; leaving the
 transcript saves transcript; leaving the storyboard / scene editor saves scenes.
 
-> Still **mock content** end-to-end: no real audio upload, transcription, AI,
-> stock-clip, or rendering. Those remain the next milestones.
+### Real audio upload
+
+The upload step is now **real**: in `AudioUploadScreen`, choosing a file (with a
+`projectId` present) validates it, reads its duration, uploads it from the
+browser to the private **`audio-files`** bucket at
+`{user_id}/{project_id}/original.{ext}`, writes the **`audio_files`** row, sets
+`projects.status = 'audio_uploaded'`, and stores the real metadata in the
+provider before continuing to `/app/create/style?projectId=…`.
+
+- `lib/upload/audio-upload.ts` — validation (mime/ext, ≤50 MB, 5–180s),
+  client-side duration extraction, browser upload (anon client only).
+- `lib/services/audio.service.ts` (server-only) + `app/app/create/audio/actions.ts`
+  — persist metadata (REPLACE strategy); never use the service role.
+- With **no** `projectId`, the mock fallback is preserved.
+
+> Still mock: in-app **recording**, **transcription**, AI, stock-clip, and
+> rendering. Transcription of the uploaded file is the next milestone.
 
 ## Current limitations
 

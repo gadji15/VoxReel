@@ -132,6 +132,10 @@ export interface AudioMetadata {
   size: string | null
   mimeType: string | null
   status: AudioStatus
+  /** Supabase Storage bucket the file lives in (when really uploaded). */
+  storageBucket?: string | null
+  /** Object path within the bucket: `{user_id}/{project_id}/original.{ext}`. */
+  storagePath?: string | null
 }
 
 /** Metadata describing the (mock) exported reel. */

@@ -17,6 +17,7 @@ import type {
   TranscriptLine,
   Caption,
   ExportMetadata,
+  AudioMetadata,
   VisualSource,
 } from '@/lib/types'
 import type { Database } from '@/lib/supabase/database.types'
@@ -29,6 +30,7 @@ type SceneRow = Database['public']['Tables']['scenes']['Row']
 type TranscriptRow = Database['public']['Tables']['transcript_segments']['Row']
 type CaptionRow = Database['public']['Tables']['captions']['Row']
 type ExportRow = Database['public']['Tables']['exports']['Row']
+type AudioRow = Database['public']['Tables']['audio_files']['Row']
 
 type SceneInsert = Database['public']['Tables']['scenes']['Insert']
 type TranscriptInsert = Database['public']['Tables']['transcript_segments']['Insert']
@@ -90,6 +92,30 @@ export function mapCaptionRowToProvider(row: CaptionRow): Caption {
   }
 }
 
+/** Provider audio metadata used when a project has no audio row yet (mock). */
+const FALLBACK_AUDIO: AudioMetadata = {
+  fileName: null,
+  duration: null,
+  size: null,
+  mimeType: null,
+  status: 'idle',
+  storageBucket: null,
+  storagePath: null,
+}
+
+export function mapAudioRowToProvider(row: AudioRow | null): AudioMetadata {
+  if (!row) return { ...FALLBACK_AUDIO }
+  return {
+    fileName: row.file_name,
+    duration: row.duration_seconds != null ? formatDuration(row.duration_seconds) : null,
+    size: row.size_bytes != null ? `${(row.size_bytes / (1024 * 1024)).toFixed(1)} MB` : null,
+    mimeType: row.mime_type,
+    status: 'ready',
+    storageBucket: row.storage_bucket,
+    storagePath: row.storage_path,
+  }
+}
+
 export function mapExportRowToProvider(row: ExportRow | null): ExportMetadata {
   if (!row) {
     return {
@@ -119,6 +145,7 @@ export interface DbDraftInput {
   scenes: SceneRow[]
   captions: CaptionRow[]
   exportRow: ExportRow | null
+  audio: AudioRow | null
 }
 
 /** Assemble the full provider draft from DB rows (with mock seed fallbacks). */
@@ -128,6 +155,7 @@ export function mapDbToCreateFlowState({
   scenes,
   captions,
   exportRow,
+  audio,
 }: DbDraftInput): CreateFlowState {
   const hasScenes = scenes.length > 0
   const mappedScenes: Scene[] = hasScenes
@@ -151,13 +179,15 @@ export function mapDbToCreateFlowState({
     storyStyle: project.story_style ?? 'noir',
     visualSource: (project.visual_source as VisualSource) ?? 'stock',
     captionStyle: project.caption_style ?? 'bold-center',
-    audio: {
-      fileName: 'voice-story.m4a',
-      duration: project.duration_seconds > 0 ? formatDuration(project.duration_seconds) : '1:18',
-      size: '2.4 MB',
-      mimeType: 'audio/mp4',
-      status: 'ready',
-    },
+    audio: audio
+      ? mapAudioRowToProvider(audio)
+      : {
+          fileName: 'voice-story.m4a',
+          duration: project.duration_seconds > 0 ? formatDuration(project.duration_seconds) : '1:18',
+          size: '2.4 MB',
+          mimeType: 'audio/mp4',
+          status: 'ready',
+        },
     transcript,
     scenes: mappedScenes,
     captions: mappedCaptions,
