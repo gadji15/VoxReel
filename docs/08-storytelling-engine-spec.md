@@ -1,35 +1,43 @@
 # 08 — Storytelling Engine Spec
 
-> Status: **Placeholder.** This is VoxReel's core differentiator. Currently the
-> output is **mocked** as `mockScenes`. No LLM/segmentation logic exists.
+> Status: **Implemented (MVP).** Real LLM story analysis splits the persisted
+> transcript into scenes via OpenAI structured output (server-only). Scenes are
+> saved to the `scenes` table and drive the storyboard. Stock-clip matching and
+> rendering are still not implemented.
 
-## Scope
+## How it works
 
-Transform a transcript into an emotionally-arced storyboard: segment narration
-into scenes, label each with an emotion + intensity, and describe the intended
-visual.
+1. After transcription, `analyzeProjectStoryAction(projectId)` runs.
+2. `lib/services/story-analysis.service.ts` (server-only) loads the project +
+   ordered `transcript_segments`, builds prompts
+   (`lib/story-analysis/prompt.ts`), and calls OpenAI
+   (`gpt-4o-mini`, Chat Completions, `response_format: json_schema` strict) to
+   return `{ summary, language, overall_emotion, scenes[] }`.
+3. The result is **normalized/validated**: scenes sorted + reindexed from 1,
+   `end > start` enforced, intensity clamped 0–100, hex color validated (else
+   `getEmotionColor`), motion/transition keys mapped to UI preset names, empty
+   text/title backfilled, `search_query` ensured.
+4. Scenes are **REPLACED** (delete-then-insert) only after valid scenes exist;
+   `projects.status → storyboard_ready`, `total_scenes`/`duration_seconds`
+   updated. Provider scenes are returned for the storyboard.
 
 ## Inputs / outputs
 
-- **Input:** timestamped transcript (`TranscriptLine[]`), chosen style preset.
-- **Output:** `Scene[]` (see `lib/types.ts`) — index, time range, emotion,
-  emotionColor, intensity, text, visualIntent, suggested motion/transition.
+- **Input:** timestamped `transcript_segments`, style context (`story_style`,
+  `language`, `visual_source`, `caption_style`), duration.
+- **Output:** `Scene[]` (`lib/types.ts`) + DB `scenes` rows incl. `search_query`
+  (kept for the future stock-video step).
 
-## Behavior (draft)
+## Guardrails
 
-- Segment by emotional beat, not just sentence boundaries.
-- Target 60–90s total runtime; ~8–10s per scene.
-- Assign a dominant emotion + 0–100 intensity per scene.
-- Produce a director-style `visualIntent` string used by clip search (doc 09).
+- Scene count scales with duration (≈3–5 / 5–8 / 8–12 / 10–15 for
+  15–30 / 30–60 / 60–120 / 120–180s).
+- Model is instructed NOT to invent events, to use real timestamps, and to write
+  cinematic, faceless-friendly `visual_intent` + concrete `search_query`.
 
-## Emotion model
+## Not implemented / follow-ups
 
-> TODO: define the canonical emotion set and emotion→color mapping (currently
-> inlined in mock data / `docs/01`).
-
-## TODO
-
-- [ ] Define the LLM prompt + schema for scene generation.
-- [ ] Define guardrails (scene count, runtime budget, pacing).
-- [ ] Define how style presets bias tone/visuals.
-- [ ] Replace `mockScenes` with generated output (later).
+- [ ] Use `search_query` to fetch stock-clip candidates (doc 09).
+- [ ] Word-level pacing / smarter scene boundaries.
+- [ ] Full caption engine (captions still mock; `caption_hint` is stored).
+- [ ] Cost/latency controls (currently a single inline call).

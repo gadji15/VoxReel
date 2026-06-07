@@ -214,8 +214,30 @@ real**:
 `OPENAI_API_KEY` is **server-only** (never `NEXT_PUBLIC`, never sent to the
 browser). With no `projectId`/audio, the mock flow is preserved.
 
-> Still mock: in-app **recording**, **story analysis / scene splitting**
-> (scenes are seeded from mock after transcription), stock-clip, and rendering.
+### Real story analysis & scene splitting (OpenAI)
+
+After transcription, the analysis step now generates **real scenes from the real
+transcript**:
+
+- `lib/story-analysis/` (types + prompt) and
+  `lib/services/story-analysis.service.ts` (server-only) send the persisted
+  `transcript_segments` to OpenAI (`gpt-4o-mini`, structured `json_schema`
+  output) and get back emotion-aware scenes (timestamps, emotion, intensity,
+  `visual_intent`, `search_query`, motion/transition).
+- Output is normalized/validated, then **REPLACES** the `scenes` rows (only when
+  valid); `projects.status → storyboard_ready`. The storyboard shows these real
+  scenes (and they persist on refresh / reopen).
+- `app/app/create/story-analysis/actions.ts` exposes
+  `analyzeProjectStoryAction` / `getProjectScenesAction`.
+- `AnalysisProgressScreen` runs transcription (reusing an existing transcript to
+  avoid re-transcribing) then story analysis; friendly error + retry on failure,
+  and it never overwrites existing scenes with empty output.
+
+`OPENAI_API_KEY` stays **server-only**. With no `projectId`/audio, the mock flow
+is preserved.
+
+> Still mock: in-app **recording**, full **captions**, **stock-clip search**, and
+> **rendering**. Stock-video matching (using each scene's `search_query`) is next.
 
 ## Current limitations
 

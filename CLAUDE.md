@@ -60,8 +60,18 @@ This repo is a **frontend-only UI skeleton**, generated with v0.
   (`audio_uploaded`→`transcribing`→`transcribed`/`failed`). Actions:
   `app/app/create/transcription/actions.ts`. `AnalysisProgressScreen` runs real
   transcription when a project has uploaded audio (friendly error + retry),
-  feeds the real transcript to the provider, and **still seeds mock scenes**
-  (no real story analysis yet). No `projectId`/audio → mock fallback.
+  feeds the real transcript to the provider, then runs real story analysis.
+  No `projectId`/audio → mock fallback.
+- **Real story analysis & scene splitting (OpenAI).** `lib/story-analysis/`
+  (types + prompt) + `lib/services/story-analysis.service.ts` (server-only) send
+  the persisted `transcript_segments` to `gpt-4o-mini` (Chat Completions,
+  `response_format: json_schema` strict), normalize/validate scenes (sort +
+  reindex, `end>start`, intensity 0–100, hex color, motion/transition → UI preset
+  names, `search_query` kept for stock search), then REPLACE the `scenes` rows
+  and set `projects.status='storyboard_ready'`. Actions:
+  `app/app/create/story-analysis/actions.ts`. The storyboard now shows real
+  scenes; existing scenes are never overwritten with empty/invalid output.
+  **Still mock: captions, stock-clip search, rendering.**
 - Emotion colors come from a single source of truth: `lib/emotions.ts`
   (`getEmotionColor()` / `emotionColorMap`). Do not re-inline emotion hex values.
 - A first **Supabase schema** exists at

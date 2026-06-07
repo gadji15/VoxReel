@@ -84,10 +84,19 @@
       `app/app/create/transcription/actions.ts`; `AnalysisProgressScreen` runs it
       (error + retry). `OPENAI_API_KEY` is server-only. Scenes still mock.
 
+- [x] Real story analysis & scene splitting (OpenAI structured output):
+      `lib/story-analysis/` (types + prompt) + `lib/services/story-analysis.service.ts`
+      (server-only) turn `transcript_segments` into validated scenes
+      (`gpt-4o-mini`, `json_schema` strict), REPLACE the `scenes` rows, and set
+      `projects.status='storyboard_ready'`. Actions in
+      `app/app/create/story-analysis/actions.ts`; `AnalysisProgressScreen` runs
+      transcription (reuses existing transcript) then analysis. Scenes persist +
+      hydrate. Mock fallback kept; existing scenes never clobbered on failure.
+
 ## Next recommended tasks
 
-- [ ] Real story analysis: from the real transcript, detect emotion + split into
-      scenes (replaces the mock scenes seeded after transcription).
+- [ ] Stock-video search: use each scene's `search_query` to fetch Pexels/Pixabay
+      clip candidates → `clip_candidates` / `selected_clips` (replaces empty clip).
 - [ ] Add archive/delete affordances to the project cards (actions already exist).
 - [ ] Add a drag-to-reorder UI for the storyboard (reducer action already exists).
 - [ ] Define the real backend seam (Supabase + async jobs) that will replace the

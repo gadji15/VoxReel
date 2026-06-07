@@ -4,20 +4,26 @@ import { useEffect, useRef, useState } from 'react'
 import { CheckCircle2, Pencil, ChevronRight, AlertTriangle, RotateCw } from 'lucide-react'
 import { useCreateFlow } from '@/components/providers/CreateFlowProvider'
 import { mockScenes, mockTranscript, mockCaptions } from '@/lib/mock-data'
-import { saveAnalysisAction, saveScenesAction, saveTranscriptAction } from '@/app/app/create/actions'
-import { transcribeProjectAudioAction } from '@/app/app/create/transcription/actions'
+import { saveAnalysisAction, saveTranscriptAction } from '@/app/app/create/actions'
+import {
+  transcribeProjectAudioAction,
+  getTranscriptAction,
+} from '@/app/app/create/transcription/actions'
+import { analyzeProjectStoryAction } from '@/app/app/create/story-analysis/actions'
 import { cn } from '@/lib/utils'
 
 interface AnalysisProgressProps {
   onComplete: () => void
 }
 
-/** Pipeline step labels (real transcription + mock storytelling). */
+/** Pipeline step labels (real transcription + real story analysis). */
 const analysisSteps = [
   { label: 'Preparing audio...' },
   { label: 'Transcribing voice...' },
   { label: 'Saving transcript...' },
+  { label: 'Analyzing story...' },
   { label: 'Detecting emotions...' },
+  { label: 'Splitting scenes...' },
   { label: 'Building storyboard...' },
 ]
 
@@ -76,35 +82,57 @@ export function AnalysisProgressScreen({ onComplete }: AnalysisProgressProps) {
       }, 1200)
     }
 
-    // REAL path: a project with uploaded audio → run OpenAI transcription.
+    // REAL path: project with uploaded audio → real transcription + analysis.
     async function runReal(pid: string) {
       setCurrentStep(0)
-      await animateTo(12, 500) // Preparing audio
+      await animateTo(8, 500) // Preparing audio
       if (cancelled) return
 
-      setCurrentStep(1) // Transcribing voice (waits on the OpenAI call)
-      await animateTo(40, 900)
-      const res = await transcribeProjectAudioAction(pid)
+      // Transcribe — but reuse an existing transcript to avoid re-transcribing.
+      setCurrentStep(1) // Transcribing voice
+      await animateTo(22, 700)
+      let transcript = await getTranscriptAction(pid)
       if (cancelled) return
-      if (!res.ok) {
-        setError(res.error ?? 'Transcription failed. Please try again.')
+      if (transcript.length === 0) {
+        const res = await transcribeProjectAudioAction(pid)
+        if (cancelled) return
+        if (!res.ok) {
+          setError(res.error ?? 'Transcription failed. Please try again.')
+          return
+        }
+        transcript = res.transcript
+      }
+      if (transcript.length === 0) {
+        setError('No transcript could be produced from the audio.')
         return
       }
 
       setCurrentStep(2) // Saving transcript
-      setTranscript(res.transcript)
-      await animateTo(65, 400)
+      setTranscript(transcript)
+      await animateTo(38, 400)
       if (cancelled) return
 
-      // Story analysis is still mock — seed + persist scenes (not transcript).
-      setCurrentStep(3) // Detecting emotions
-      const scenes = mockScenes.map((s) => ({ ...s }))
-      setScenes(scenes)
-      void saveScenesAction(pid, scenes).catch(() => {})
-      await animateTo(85, 500)
+      // REAL story analysis from the transcript (generates + saves scenes).
+      setCurrentStep(3) // Analyzing story (waits on the OpenAI call)
+      await animateTo(58, 800)
+      const story = await analyzeProjectStoryAction(pid)
+      if (cancelled) return
+      if (!story.ok || story.scenes.length === 0) {
+        // Keep any existing scenes; just show the error.
+        setError(story.error ?? 'Story analysis failed. Please try again.')
+        return
+      }
+
+      setCurrentStep(4) // Detecting emotions
+      await animateTo(74, 400)
       if (cancelled) return
 
-      setCurrentStep(4) // Building storyboard
+      setCurrentStep(5) // Splitting scenes
+      setScenes(story.scenes)
+      await animateTo(90, 400)
+      if (cancelled) return
+
+      setCurrentStep(6) // Building storyboard
       await animateTo(100, 500)
       finish()
     }
@@ -114,11 +142,11 @@ export function AnalysisProgressScreen({ onComplete }: AnalysisProgressProps) {
       const transcript = mockTranscript.map((l) => ({ ...l }))
       const scenes = mockScenes.map((s) => ({ ...s }))
       const captions = mockCaptions.map((c) => ({ ...c }))
-      const targets = [12, 40, 62, 84, 100]
+      const targets = [8, 22, 38, 58, 74, 90, 100]
       for (let i = 0; i < analysisSteps.length; i++) {
         if (cancelled) return
         setCurrentStep(i)
-        await animateTo(targets[i], 700)
+        await animateTo(targets[i] ?? 100, 500)
       }
       if (cancelled) return
       setTranscript(transcript)
