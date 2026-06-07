@@ -11,6 +11,7 @@ import {
 } from '@/app/app/create/transcription/actions'
 import { analyzeProjectStoryAction } from '@/app/app/create/story-analysis/actions'
 import { searchStockVideosForProjectAction } from '@/app/app/create/stock-video/actions'
+import { cacheSelectedClipsForProjectAction } from '@/app/app/create/clip-cache/actions'
 import { cn } from '@/lib/utils'
 
 interface AnalysisProgressProps {
@@ -27,6 +28,7 @@ const analysisSteps = [
   { label: 'Splitting scenes...' },
   { label: 'Searching visual matches...' },
   { label: 'Ranking stock clips...' },
+  { label: 'Caching selected clips...' },
   { label: 'Building storyboard...' },
 ]
 
@@ -139,11 +141,13 @@ export function AnalysisProgressScreen({ onComplete }: AnalysisProgressProps) {
 
       // Stock-video search — non-fatal: scenes stay usable even if it fails.
       setCurrentStep(6) // Searching visual matches
-      await animateTo(86, 700)
+      await animateTo(82, 700)
       const stock = await searchStockVideosForProjectAction(pid)
       if (cancelled) return
+      let clipsSelected = false
       if (stock.ok && stock.scenes.length > 0) {
         setScenes(stock.scenes) // scenes hydrated with selected clips
+        clipsSelected = stock.clipsSelected > 0
       } else if (stock.noProvider) {
         setWarning('Stock video search skipped — no provider key configured.')
       } else if (!stock.ok) {
@@ -151,10 +155,23 @@ export function AnalysisProgressScreen({ onComplete }: AnalysisProgressProps) {
       }
 
       setCurrentStep(7) // Ranking stock clips
-      await animateTo(94, 400)
+      await animateTo(88, 400)
       if (cancelled) return
 
-      setCurrentStep(8) // Building storyboard
+      // Cache selected clips into private storage — non-fatal.
+      setCurrentStep(8) // Caching selected clips
+      await animateTo(95, 700)
+      if (clipsSelected) {
+        const cache = await cacheSelectedClipsForProjectAction(pid)
+        if (cancelled) return
+        if (!cache.ok && cache.cached === 0) {
+          setWarning('Clips found, but caching failed — provider links are still saved.')
+        } else if (cache.failed > 0) {
+          setWarning(`Cached ${cache.cached} clip(s); ${cache.failed} couldn’t be cached yet.`)
+        }
+      }
+
+      setCurrentStep(9) // Building storyboard
       await animateTo(100, 400)
       finish()
     }
@@ -164,7 +181,7 @@ export function AnalysisProgressScreen({ onComplete }: AnalysisProgressProps) {
       const transcript = mockTranscript.map((l) => ({ ...l }))
       const scenes = mockScenes.map((s) => ({ ...s }))
       const captions = mockCaptions.map((c) => ({ ...c }))
-      const targets = [8, 20, 32, 48, 62, 74, 86, 94, 100]
+      const targets = [8, 18, 30, 44, 56, 68, 78, 88, 95, 100]
       for (let i = 0; i < analysisSteps.length; i++) {
         if (cancelled) return
         setCurrentStep(i)

@@ -257,8 +257,24 @@ Provider keys (`PEXELS_API_KEY` / `PIXABAY_API_KEY`) are **server-only**. If a k
 is missing the other provider is used; if both are missing, search is skipped
 with a friendly warning and scenes stay usable. No `projectId`/audio → mock flow.
 
-> Still not implemented: clip **download/caching**, full **captions**, and
-> **rendering** (Remotion/FFmpeg). Rendering is the next milestone.
+### Selected-clip caching (Supabase Storage)
+
+After stock search, each scene's **selected clip is downloaded server-side and
+cached** in the private `video-clips-cache` bucket (ready for the renderer):
+
+- `lib/services/clip-cache.service.ts` (server-only) fetches the provider URL,
+  validates status/content-type, enforces a 100 MB cap, uploads to
+  `video-clips-cache/{user}/{project}/{scene}/{selectedClip}.mp4` (`upsert`), and
+  records `selected_clips.storage_bucket` / `storage_path` — **`source_url` stays
+  unchanged**.
+- `app/app/create/clip-cache/actions.ts` exposes
+  `cacheSelectedClipsForProjectAction`, `cacheSelectedClipAction`,
+  `getCachedSelectedClipsAction`. The analysis screen runs caching automatically
+  after stock search (non-fatal — failures keep provider links and never delete
+  scenes/clips). Idempotent: re-running replaces, never duplicates.
+
+> Still not implemented: full **captions** and **rendering** (Remotion/FFmpeg).
+> Rendering — consuming the cached clips — is the next milestone.
 
 ## Current limitations
 

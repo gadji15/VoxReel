@@ -101,10 +101,18 @@
       scenes hydrate with selected clip; Replace Clip sheet shows real candidates.
       Keys server-only; missing keys handled gracefully.
 
+- [x] Selected-clip caching: `lib/services/clip-cache.service.ts` (server-only)
+      downloads each scene's selected clip and caches it to the private
+      `video-clips-cache` bucket (`{user}/{project}/{scene}/{clip}.mp4`, upsert,
+      100 MB cap, content-type checks), recording
+      `selected_clips.storage_bucket`/`storage_path` (source_url unchanged).
+      Actions in `app/app/create/clip-cache/actions.ts`; analysis screen caches
+      after stock search (non-fatal, idempotent). See `docs/10-clip-cache-spec.md`.
+
 ## Next recommended tasks
 
-- [ ] Rendering preparation: download/cache selected clips to `video-clips-cache`,
-      then a real render pipeline (Remotion/FFmpeg) → `exports` / `render_jobs`.
+- [ ] Rendering: a real pipeline (Remotion/FFmpeg) that composes the cached clips
+      + captions + motion/transition into a 9:16 MP4 → `render_jobs` / `exports`.
 - [ ] Add archive/delete affordances to the project cards (actions already exist).
 - [ ] Add a drag-to-reorder UI for the storyboard (reducer action already exists).
 - [ ] Define the real backend seam (Supabase + async jobs) that will replace the

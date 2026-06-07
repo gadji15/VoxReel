@@ -69,6 +69,9 @@ export interface Scene {
   clipPreviewUrl?: string | null
   clipSourceUrl?: string | null
   clipProvider?: string | null
+  /** Cached-clip location in Supabase Storage (present once the clip is cached). */
+  clipCachedBucket?: string | null
+  clipCachedPath?: string | null
 }
 
 /** A cinematic style/look preset. */

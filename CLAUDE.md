@@ -82,8 +82,16 @@ This repo is a **frontend-only UI skeleton**, generated with v0.
   optional `dbId`/`clip*Url` fields). The **Replace Clip** sheet lists real
   candidates and persists the choice. Keys `PEXELS_API_KEY`/`PIXABAY_API_KEY` are
   **server-only**; missing keys → use the other / skip with a warning (scenes
-  stay usable). **Still not implemented: clip download/caching, captions,
-  rendering.**
+  stay usable).
+- **Selected-clip caching.** `lib/services/clip-cache.service.ts` (server-only)
+  downloads each scene's selected clip from its provider URL, validates
+  status/content-type + a 100 MB cap, uploads to the private `video-clips-cache`
+  bucket at `{user}/{project}/{scene}/{selectedClip}.mp4` (`upsert`), and records
+  `selected_clips.storage_bucket`/`storage_path` (`source_url` unchanged).
+  Actions: `app/app/create/clip-cache/actions.ts`. The analysis screen caches
+  automatically after stock search (non-fatal; idempotent — one failing clip
+  never aborts the run). Scenes hydrate `clipCachedBucket`/`clipCachedPath`.
+  **Still not implemented: captions, rendering.**
 - Emotion colors come from a single source of truth: `lib/emotions.ts`
   (`getEmotionColor()` / `emotionColorMap`). Do not re-inline emotion hex values.
 - A first **Supabase schema** exists at

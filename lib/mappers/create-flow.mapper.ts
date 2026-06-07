@@ -99,6 +99,8 @@ export function mapSceneRowToProvider(
     clipPreviewUrl: sel ? asStr(sel.previewUrl) : null,
     clipSourceUrl: selectedClip?.source_url ?? (sel ? asStr(sel.sourceUrl) : null),
     clipProvider: selectedClip?.provider ?? null,
+    clipCachedBucket: selectedClip?.storage_bucket ?? null,
+    clipCachedPath: selectedClip?.storage_path ?? null,
   }
 }
 
