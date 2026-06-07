@@ -106,6 +106,23 @@ Security policies, and private storage buckets.
 > [`supabase/README.md`](supabase/README.md). Copy [`.env.example`](.env.example)
 > to `.env.local` and fill in keys when you begin wiring the backend.
 
+### Supabase client layer
+
+A connection layer exists under [`lib/supabase/`](lib/supabase) (using
+`@supabase/supabase-js` + `@supabase/ssr`):
+
+- `createSupabaseBrowserClient()` — Client Components (public URL + anon key).
+- `createSupabaseServerClient()` — Server Components / Route Handlers /
+  Server Actions (session-aware, cookie-based, anon key).
+- `createSupabaseAdminClient()` — **server-only** service-role client
+  (`import 'server-only'`; imported directly from `lib/supabase/admin`, never
+  from a client component; **never** exposed to the browser).
+- `database.types.ts` — typed `Database` for the schema.
+
+Health check: **`GET /api/health/supabase`** returns `{ ok, message, timestamp }`
+after a light `profiles` query. **The app is still mock-driven — none of the
+create flow reads from Supabase yet.**
+
 ## Current limitations
 
 - No backend, database, or authentication.

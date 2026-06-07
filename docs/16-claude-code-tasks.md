@@ -36,14 +36,19 @@
       (`supabase/migrations/001_initial_schema.sql`): 12 tables, indexes,
       `updated_at` + new-user triggers, RLS policies, private storage buckets.
       Added `.env.example` and `supabase/README.md`. **Not executed
-      automatically; frontend NOT connected to Supabase.** Next: create a
-      Supabase project and run the migration manually (SQL Editor / CLI).
+      automatically; frontend NOT connected to Supabase.**
+- [x] Supabase client layer (`lib/supabase/`): `@supabase/supabase-js` +
+      `@supabase/ssr` + `server-only`. Browser, session-aware server, and
+      server-only admin clients; validated `env.ts`; hand-written
+      `database.types.ts`; barrel `index.ts` (admin intentionally excluded).
+      Diagnostic route `GET /api/health/supabase`. Service role stays
+      server-only. **Still mock-driven — provider/screens unchanged.**
 
 ## Next recommended tasks
 
-- [ ] Create a Supabase project, run `001_initial_schema.sql`, and add a
-      Supabase client (`@supabase/supabase-js`) + typed DB types — still without
-      changing the mock UI.
+- [ ] Auth: add a session middleware + minimal sign-in, and protect `/app/*`.
+- [ ] Project persistence: back `CreateFlowProvider` actions with Supabase
+      reads/writes (behind the same interface) once auth exists.
 - [ ] Add a drag-to-reorder UI for the storyboard (reducer action already exists).
 - [ ] Define the real backend seam (Supabase + async jobs) that will replace the
       mock audio/analysis/render lifecycle behind the same provider actions.

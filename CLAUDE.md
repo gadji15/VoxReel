@@ -43,6 +43,14 @@ This repo is a **frontend-only UI skeleton**, generated with v0.
   **frontend is NOT connected to Supabase**. Apply it manually (SQL Editor /
   Supabase CLI); see `supabase/README.md`. `.env.example` lists the keys (no real
   secrets committed; `.env.local` is gitignored).
+- A **Supabase client layer** exists at `lib/supabase/` (`@supabase/supabase-js`
+  + `@supabase/ssr`): `createSupabaseBrowserClient()` (client),
+  `createSupabaseServerClient()` (session-aware server), and
+  `createSupabaseAdminClient()` (**server-only** service role — `import
+  'server-only'`, NOT re-exported from the barrel, never imported by client
+  code). Diagnostic route: `GET /api/health/supabase`. **Still mock-driven — no
+  screen/provider reads from Supabase yet.** Never move the service role key into
+  `NEXT_PUBLIC_*`; never import `lib/supabase/admin` in a client component.
 
 ## Current stack
 
@@ -117,12 +125,22 @@ lib/
   types.ts                # shared UI types (incl. CreateFlowState)
   mock-data.ts            # mock content for the UI
   utils.ts                # cn() and helpers
+  supabase/               # Supabase client layer (browser/server/admin/types)
 docs/                     # product + technical specs (00–16)
 supabase/                 # database schema (NOT connected to the app yet)
   migrations/             # SQL migrations, run manually (Editor / Supabase CLI)
   README.md               # how to apply the migration
 public/                   # static assets
 ```
+
+### Supabase client layer (`lib/supabase/`)
+
+- `index.ts` exports the safe clients only: `createSupabaseBrowserClient`,
+  `createSupabaseServerClient`. The **admin** client is NOT exported here.
+- `admin.ts` is **server-only** (`import 'server-only'`). Import it directly and
+  only from server code. It uses the service role key (bypasses RLS).
+- `env.ts` validates env vars and throws clear errors (variable names only,
+  never values). `database.types.ts` holds the typed `Database` schema.
 
 ### Create-flow state
 
