@@ -10,13 +10,14 @@ import {
   getTranscriptAction,
 } from '@/app/app/create/transcription/actions'
 import { analyzeProjectStoryAction } from '@/app/app/create/story-analysis/actions'
+import { searchStockVideosForProjectAction } from '@/app/app/create/stock-video/actions'
 import { cn } from '@/lib/utils'
 
 interface AnalysisProgressProps {
   onComplete: () => void
 }
 
-/** Pipeline step labels (real transcription + real story analysis). */
+/** Pipeline step labels (real transcription + story analysis + stock search). */
 const analysisSteps = [
   { label: 'Preparing audio...' },
   { label: 'Transcribing voice...' },
@@ -24,6 +25,8 @@ const analysisSteps = [
   { label: 'Analyzing story...' },
   { label: 'Detecting emotions...' },
   { label: 'Splitting scenes...' },
+  { label: 'Searching visual matches...' },
+  { label: 'Ranking stock clips...' },
   { label: 'Building storyboard...' },
 ]
 
@@ -40,6 +43,7 @@ export function AnalysisProgressScreen({ onComplete }: AnalysisProgressProps) {
   const [progress, setProgress] = useState(0)
   const [done, setDone] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [warning, setWarning] = useState<string | null>(null)
   const [retryKey, setRetryKey] = useState(0)
   const progressRef = useRef(0)
 
@@ -50,6 +54,7 @@ export function AnalysisProgressScreen({ onComplete }: AnalysisProgressProps) {
     setCurrentStep(0)
     setDone(false)
     setError(null)
+    setWarning(null)
 
     // Smoothly animate the ring toward a target percentage.
     const animateTo = (target: number, ms: number) =>
@@ -124,16 +129,33 @@ export function AnalysisProgressScreen({ onComplete }: AnalysisProgressProps) {
       }
 
       setCurrentStep(4) // Detecting emotions
-      await animateTo(74, 400)
+      await animateTo(64, 400)
       if (cancelled) return
 
       setCurrentStep(5) // Splitting scenes
       setScenes(story.scenes)
-      await animateTo(90, 400)
+      await animateTo(74, 400)
       if (cancelled) return
 
-      setCurrentStep(6) // Building storyboard
-      await animateTo(100, 500)
+      // Stock-video search — non-fatal: scenes stay usable even if it fails.
+      setCurrentStep(6) // Searching visual matches
+      await animateTo(86, 700)
+      const stock = await searchStockVideosForProjectAction(pid)
+      if (cancelled) return
+      if (stock.ok && stock.scenes.length > 0) {
+        setScenes(stock.scenes) // scenes hydrated with selected clips
+      } else if (stock.noProvider) {
+        setWarning('Stock video search skipped — no provider key configured.')
+      } else if (!stock.ok) {
+        setWarning('Couldn’t fetch stock clips this time — you can replace clips later.')
+      }
+
+      setCurrentStep(7) // Ranking stock clips
+      await animateTo(94, 400)
+      if (cancelled) return
+
+      setCurrentStep(8) // Building storyboard
+      await animateTo(100, 400)
       finish()
     }
 
@@ -142,7 +164,7 @@ export function AnalysisProgressScreen({ onComplete }: AnalysisProgressProps) {
       const transcript = mockTranscript.map((l) => ({ ...l }))
       const scenes = mockScenes.map((s) => ({ ...s }))
       const captions = mockCaptions.map((c) => ({ ...c }))
-      const targets = [8, 22, 38, 58, 74, 90, 100]
+      const targets = [8, 20, 32, 48, 62, 74, 86, 94, 100]
       for (let i = 0; i < analysisSteps.length; i++) {
         if (cancelled) return
         setCurrentStep(i)
@@ -290,6 +312,11 @@ export function AnalysisProgressScreen({ onComplete }: AnalysisProgressProps) {
           <p className="text-xs text-secondary-text mt-1">
             {state.transcript.length} transcript lines · {state.scenes.length} scenes
           </p>
+          {warning && (
+            <p className="text-[11px] mt-2 max-w-xs mx-auto" style={{ color: '#D6B36A' }}>
+              {warning}
+            </p>
+          )}
         </div>
       )}
     </div>

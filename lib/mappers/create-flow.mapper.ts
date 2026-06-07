@@ -31,6 +31,7 @@ type TranscriptRow = Database['public']['Tables']['transcript_segments']['Row']
 type CaptionRow = Database['public']['Tables']['captions']['Row']
 type ExportRow = Database['public']['Tables']['exports']['Row']
 type AudioRow = Database['public']['Tables']['audio_files']['Row']
+type SelectedClipRow = Database['public']['Tables']['selected_clips']['Row']
 
 type SceneInsert = Database['public']['Tables']['scenes']['Insert']
 type TranscriptInsert = Database['public']['Tables']['transcript_segments']['Insert']
@@ -54,8 +55,29 @@ function metaRecord(value: unknown): Record<string, unknown> {
 
 /* ── DB → provider ───────────────────────────────────────────────────────── */
 
-export function mapSceneRowToProvider(row: SceneRow, total: number): Scene {
+export function mapSceneRowToProvider(
+  row: SceneRow,
+  total: number,
+  selectedClip?: SelectedClipRow | null
+): Scene {
   const meta = metaRecord(row.metadata)
+  const sel = selectedClip ? metaRecord(selectedClip.metadata) : null
+
+  // Prefer the selected stock clip's data when present, else legacy metadata.
+  const clip =
+    sel && typeof sel.title === 'string' && sel.title
+      ? sel.title
+      : typeof meta.clip === 'string'
+        ? meta.clip
+        : ''
+  const clipMatch =
+    sel && typeof sel.matchScore === 'number'
+      ? sel.matchScore
+      : typeof meta.clipMatch === 'number'
+        ? meta.clipMatch
+        : 0
+  const asStr = (v: unknown): string | null => (typeof v === 'string' ? v : null)
+
   return {
     id: row.scene_index,
     index: row.scene_index,
@@ -67,11 +89,16 @@ export function mapSceneRowToProvider(row: SceneRow, total: number): Scene {
     intensity: row.intensity,
     text: row.text,
     visualIntent: row.visual_intent ?? '',
-    clip: typeof meta.clip === 'string' ? meta.clip : '',
-    clipMatch: typeof meta.clipMatch === 'number' ? meta.clipMatch : 0,
+    clip,
+    clipMatch,
     motion: row.motion_preset ?? 'Static Hold',
     transition: row.transition_preset ?? 'Hard Cut',
     locked: row.locked,
+    dbId: row.id,
+    clipThumbnailUrl: sel ? asStr(sel.thumbnailUrl) : null,
+    clipPreviewUrl: sel ? asStr(sel.previewUrl) : null,
+    clipSourceUrl: selectedClip?.source_url ?? (sel ? asStr(sel.sourceUrl) : null),
+    clipProvider: selectedClip?.provider ?? null,
   }
 }
 
@@ -146,6 +173,7 @@ export interface DbDraftInput {
   captions: CaptionRow[]
   exportRow: ExportRow | null
   audio: AudioRow | null
+  selectedClips: SelectedClipRow[]
 }
 
 /** Assemble the full provider draft from DB rows (with mock seed fallbacks). */
@@ -156,10 +184,14 @@ export function mapDbToCreateFlowState({
   captions,
   exportRow,
   audio,
+  selectedClips,
 }: DbDraftInput): CreateFlowState {
   const hasScenes = scenes.length > 0
+  const selectedByScene = new Map<string, SelectedClipRow>(
+    (selectedClips ?? []).map((s) => [s.scene_id, s])
+  )
   const mappedScenes: Scene[] = hasScenes
-    ? scenes.map((s) => mapSceneRowToProvider(s, scenes.length))
+    ? scenes.map((s) => mapSceneRowToProvider(s, scenes.length, selectedByScene.get(s.id)))
     : mockScenes.map((s) => ({ ...s }))
 
   const transcript: TranscriptLine[] =

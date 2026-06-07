@@ -93,10 +93,18 @@
       transcription (reuses existing transcript) then analysis. Scenes persist +
       hydrate. Mock fallback kept; existing scenes never clobbered on failure.
 
+- [x] Stock-video search (Pexels/Pixabay MVP): `lib/stock-video/` (types +
+      server-only provider clients + scoring) + `lib/services/stock-video.service.ts`
+      query per scene via `search_query`, score, REPLACE `clip_candidates`,
+      select best into `selected_clips`, set `projects.status='clips_ready'`.
+      Actions in `app/app/create/stock-video/actions.ts`; analysis screen runs it;
+      scenes hydrate with selected clip; Replace Clip sheet shows real candidates.
+      Keys server-only; missing keys handled gracefully.
+
 ## Next recommended tasks
 
-- [ ] Stock-video search: use each scene's `search_query` to fetch Pexels/Pixabay
-      clip candidates → `clip_candidates` / `selected_clips` (replaces empty clip).
+- [ ] Rendering preparation: download/cache selected clips to `video-clips-cache`,
+      then a real render pipeline (Remotion/FFmpeg) → `exports` / `render_jobs`.
 - [ ] Add archive/delete affordances to the project cards (actions already exist).
 - [ ] Add a drag-to-reorder UI for the storyboard (reducer action already exists).
 - [ ] Define the real backend seam (Supabase + async jobs) that will replace the

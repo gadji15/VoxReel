@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
-  ChevronLeft, ChevronRight, Play, Film, Zap, RefreshCw,
+  ChevronLeft, ChevronRight, Play, Film, Zap, RefreshCw, Loader2,
   Pencil, Settings2, Type, Move3D, ChevronDown, Check, X, Plus
 } from 'lucide-react'
 import { SceneCard } from '@/components/voxreel/SceneCard'
@@ -12,6 +12,11 @@ import { VideoPreviewPhoneFrame } from '@/components/voxreel/VideoPreviewPhoneFr
 import { mockMotionPresets, mockTransitionPresets } from '@/lib/mock-data'
 import { useCreateFlow } from '@/components/providers/CreateFlowProvider'
 import { saveScenesAction } from '@/app/app/create/actions'
+import {
+  getClipCandidatesForSceneAction,
+  selectClipCandidateAction,
+} from '@/app/app/create/stock-video/actions'
+import type { ClipCandidateView } from '@/lib/stock-video/types'
 import { cn } from '@/lib/utils'
 
 /* ── Storyboard Screen (swipeable scenes list) ── */
@@ -170,6 +175,24 @@ export function SceneDetailEditor({ sceneId = 4, onBack, onNext }: SceneDetailEd
   const [selectedTransition, setSelectedTransition] = useState(scene?.transition ?? '')
   const [captionText, setCaptionText] = useState(scene?.text ?? '')
 
+  // Real stock-clip candidates (loaded lazily when the Replace Clip sheet opens).
+  const [realClips, setRealClips] = useState<ClipCandidateView[] | null>(null)
+  const [loadingClips, setLoadingClips] = useState(false)
+  const [applyingClip, setApplyingClip] = useState(false)
+  const sceneDbId = scene?.dbId
+
+  useEffect(() => {
+    if (!clipSheet || !projectId || !sceneDbId || realClips !== null || loadingClips) return
+    setLoadingClips(true)
+    getClipCandidatesForSceneAction(projectId, sceneDbId)
+      .then((rows) => {
+        setRealClips(rows)
+        setSelectedClipIdx(0)
+      })
+      .catch(() => setRealClips([]))
+      .finally(() => setLoadingClips(false))
+  }, [clipSheet, projectId, sceneDbId, realClips, loadingClips])
+
   // Route safety: the requested scene doesn't exist → friendly fallback.
   if (!scene) {
     return (
@@ -198,9 +221,42 @@ export function SceneDetailEditor({ sceneId = 4, onBack, onNext }: SceneDetailEd
     )
   }
 
-  const applyClip = () => {
-    const clip = suggestedClips[selectedClipIdx]
-    if (clip) replaceSceneClip(scene.id, clip.name, clip.match)
+  const fmtDur = (s: number | null) =>
+    s != null ? `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}` : ''
+
+  // Real candidates when available, else the mock suggestions (dev / no search yet).
+  const clipChoices =
+    realClips && realClips.length > 0
+      ? realClips.map((c) => ({
+          id: c.id,
+          title: c.title,
+          match: c.matchScore,
+          dur: fmtDur(c.durationSeconds),
+          thumbnailUrl: c.thumbnailUrl,
+          real: true,
+        }))
+      : suggestedClips.map((c, i) => ({
+          id: `mock-${i}`,
+          title: c.name,
+          match: c.match,
+          dur: c.dur,
+          thumbnailUrl: null as string | null,
+          real: false,
+        }))
+
+  const applyClip = async () => {
+    const choice = clipChoices[selectedClipIdx]
+    if (!choice) {
+      setClipSheet(false)
+      return
+    }
+    // Persist the selection for a real candidate; otherwise just update local state.
+    if (choice.real && projectId && scene.dbId) {
+      setApplyingClip(true)
+      await selectClipCandidateAction(projectId, scene.dbId, choice.id).catch(() => {})
+      setApplyingClip(false)
+    }
+    replaceSceneClip(scene.id, choice.title, choice.match)
     setClipSheet(false)
   }
 
@@ -371,31 +427,41 @@ export function SceneDetailEditor({ sceneId = 4, onBack, onNext }: SceneDetailEd
             aria-label="Search clip library"
           />
 
-          {/* Suggested clips */}
+          {/* Candidate clips (real when available, else mock suggestions) */}
           <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-secondary-text mb-3">AI Suggested</p>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-bold uppercase tracking-widest text-secondary-text">
+                {realClips && realClips.length > 0 ? 'Stock matches' : 'AI Suggested'}
+              </p>
+              {loadingClips && <Loader2 className="w-3.5 h-3.5 text-secondary-text animate-spin" />}
+            </div>
             <div className="flex flex-col gap-3" role="list">
-              {suggestedClips.map((clip, i) => (
+              {clipChoices.map((clip, i) => (
                 <button
-                  key={i}
+                  key={clip.id}
                   onClick={() => setSelectedClipIdx(i)}
                   className="flex items-center gap-3 text-left"
                   role="listitem"
-                  aria-label={`Select clip: ${clip.name}`}
+                  aria-label={`Select clip: ${clip.title}`}
                   aria-pressed={selectedClipIdx === i}
                 >
                   <div
-                    className="w-14 rounded-lg shrink-0 flex items-center justify-center"
+                    className="w-14 rounded-lg shrink-0 overflow-hidden flex items-center justify-center"
                     style={{ aspectRatio: '9/16', background: 'linear-gradient(160deg, #150C0C 0%, #0D0E1A 100%)', border: '1px solid #252A33' }}
                     aria-hidden="true"
                   >
-                    <Film className="w-4 h-4 text-secondary-text" />
+                    {clip.thumbnailUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={clip.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <Film className="w-4 h-4 text-secondary-text" />
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{clip.name}</p>
+                    <p className="text-sm font-medium text-foreground truncate">{clip.title}</p>
                     <div className="flex items-center gap-2 mt-1">
                       <MatchScoreBadge score={clip.match} />
-                      <span className="text-[11px] text-secondary-text">{clip.dur}</span>
+                      {clip.dur && <span className="text-[11px] text-secondary-text">{clip.dur}</span>}
                     </div>
                   </div>
                   <div
@@ -414,10 +480,12 @@ export function SceneDetailEditor({ sceneId = 4, onBack, onNext }: SceneDetailEd
 
           <button
             onClick={applyClip}
-            className="w-full py-3.5 rounded-xl font-semibold text-white transition-all hover:opacity-90"
+            disabled={applyingClip}
+            className="w-full py-3.5 rounded-xl font-semibold text-white flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-60"
             style={{ background: 'linear-gradient(135deg, #D64545, #B03030)' }}
           >
-            Apply Clip
+            {applyingClip && <Loader2 className="w-4 h-4 animate-spin" />}
+            {applyingClip ? 'Applying…' : 'Apply Clip'}
           </button>
         </div>
       </BottomSheet>

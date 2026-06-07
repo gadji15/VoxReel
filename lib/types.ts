@@ -62,6 +62,13 @@ export interface Scene {
   transition: string
   /** When locked, automated re-generation should not overwrite this scene. */
   locked?: boolean
+  /** DB uuid of the scene (present when hydrated from Supabase). */
+  dbId?: string
+  /** Selected stock-clip media (present once stock search has run). */
+  clipThumbnailUrl?: string | null
+  clipPreviewUrl?: string | null
+  clipSourceUrl?: string | null
+  clipProvider?: string | null
 }
 
 /** A cinematic style/look preset. */

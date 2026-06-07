@@ -71,7 +71,19 @@ This repo is a **frontend-only UI skeleton**, generated with v0.
   and set `projects.status='storyboard_ready'`. Actions:
   `app/app/create/story-analysis/actions.ts`. The storyboard now shows real
   scenes; existing scenes are never overwritten with empty/invalid output.
-  **Still mock: captions, stock-clip search, rendering.**
+- **Real stock-video search (Pexels/Pixabay).** `lib/stock-video/` (types,
+  `pexels.ts`/`pixabay.ts`/`scoring.ts` — provider clients are server-only) +
+  `lib/services/stock-video.service.ts` (server-only) query providers per scene
+  using `scene.search_query`, normalize + score (0–100), REPLACE
+  `clip_candidates`, select the best into `selected_clips`, and set
+  `projects.status='clips_ready'`. Actions:
+  `app/app/create/stock-video/actions.ts`. Scenes hydrate with the selected clip
+  (title/match/thumbnail via `getCreateFlowDraft` + mappers; `Scene` gained
+  optional `dbId`/`clip*Url` fields). The **Replace Clip** sheet lists real
+  candidates and persists the choice. Keys `PEXELS_API_KEY`/`PIXABAY_API_KEY` are
+  **server-only**; missing keys → use the other / skip with a warning (scenes
+  stay usable). **Still not implemented: clip download/caching, captions,
+  rendering.**
 - Emotion colors come from a single source of truth: `lib/emotions.ts`
   (`getEmotionColor()` / `emotionColorMap`). Do not re-inline emotion hex values.
 - A first **Supabase schema** exists at

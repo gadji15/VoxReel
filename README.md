@@ -236,8 +236,29 @@ transcript**:
 `OPENAI_API_KEY` stays **server-only**. With no `projectId`/audio, the mock flow
 is preserved.
 
-> Still mock: in-app **recording**, full **captions**, **stock-clip search**, and
-> **rendering**. Stock-video matching (using each scene's `search_query`) is next.
+### Real stock-video search (Pexels / Pixabay)
+
+After scene splitting, the analysis step searches **real stock footage** per
+scene:
+
+- `lib/stock-video/` (types, `pexels.ts`, `pixabay.ts`, `scoring.ts`, all
+  server-only for the provider clients) + `lib/services/stock-video.service.ts`
+  query providers using each scene's `search_query`, normalize + score (0–100,
+  vertical/duration/resolution fit), **REPLACE** `clip_candidates`, and pick the
+  best into `selected_clips`. `projects.status → clips_ready`.
+- `app/app/create/stock-video/actions.ts` exposes
+  `searchStockVideosForProjectAction`, `searchStockVideosForSceneAction`,
+  `getClipCandidatesForSceneAction`, `selectClipCandidateAction`.
+- Scenes hydrate with the selected clip (title + match + thumbnail/preview URLs);
+  the **Replace Clip** sheet now lists the **real candidates** and persists the
+  user's choice.
+
+Provider keys (`PEXELS_API_KEY` / `PIXABAY_API_KEY`) are **server-only**. If a key
+is missing the other provider is used; if both are missing, search is skipped
+with a friendly warning and scenes stay usable. No `projectId`/audio → mock flow.
+
+> Still not implemented: clip **download/caching**, full **captions**, and
+> **rendering** (Remotion/FFmpeg). Rendering is the next milestone.
 
 ## Current limitations
 

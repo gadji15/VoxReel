@@ -1,33 +1,43 @@
 # 09 — Stock Video Search Spec
 
-> Status: **Placeholder.** Clip matching is **mocked** (`scene.clip`,
-> `scene.clipMatch`, and the suggested-clips list in the scene editor). No real
-> provider integration exists.
+> Status: **Implemented (MVP).** Real stock-video search via Pexels/Pixabay
+> (server-only) runs after story analysis: candidates are saved to
+> `clip_candidates`, the best is chosen into `selected_clips`, and the
+> storyboard/scene editor show real clips. Downloading/caching + rendering are
+> still not implemented.
 
-## Scope
+## How it works
 
-Given a scene's `visualIntent`, find and rank candidate vertical stock clips,
-exposing a match score the UI already renders.
+1. After scene splitting, `searchStockVideosForProjectAction(projectId)` runs.
+2. `lib/services/stock-video.service.ts` (server-only) loads scenes and, per
+   scene, queries available providers using `scene.search_query`
+   (`lib/stock-video/pexels.ts`, `pixabay.ts` — server-only, key from env).
+3. Results are normalized to `StockVideoCandidate` and scored 0–100
+   (`lib/stock-video/scoring.ts`: orientation/duration/resolution fit; relevance
+   is approximate and the `reason` says so).
+4. Per scene: **REPLACE** `clip_candidates` (top ~8), then write the best into
+   `selected_clips` (one per scene). `projects.status → clips_ready` when ≥1
+   clip is selected.
+5. Provider scenes are hydrated with the selected clip (title + `clipMatch` +
+   thumbnail/preview/source URLs) via `getCreateFlowDraft`/mappers, so the
+   storyboard and the **Replace Clip** sheet show real data. Selecting another
+   candidate persists via `selectClipCandidateAction`.
 
-## Providers (planned)
+## Providers
 
-- Pexels API, Pixabay API (free, vertical-friendly).
+- **Pexels** (`orientation=portrait`) and **Pixabay** (`video_type=film`).
+- If only one key is set, that provider is used. If **neither** is set, search is
+  skipped with a friendly warning and scenes stay usable.
 
-## Behavior (draft)
+## Safety
 
-- Build a search query from `visualIntent` + emotion + style preset.
-- Prefer 9:16 / vertical, dark/cinematic footage.
-- Return ranked candidates with a 0–100 `clipMatch` confidence.
-- Cache results; allow manual replacement (the "Replace Clip" sheet exists).
+- `PEXELS_API_KEY` / `PIXABAY_API_KEY` are **server-only**, never `NEXT_PUBLIC`,
+  never sent to the browser, never logged. No service-role usage.
 
-## Data shape
+## Not implemented / follow-ups
 
-Scene fields involved (`lib/types.ts`): `clip`, `clipMatch`. A future
-`ClipCandidate` type will carry provider id, thumbnail, duration, and URL.
-
-## TODO
-
-- [ ] Define query-construction strategy from `visualIntent`.
-- [ ] Define ranking / match-score algorithm.
-- [ ] Define caching + attribution/licensing handling.
-- [ ] Wire the "Replace Clip" sheet to live results (later).
+- [ ] Download/cache clips to the `video-clips-cache` bucket.
+- [ ] Semantic relevance (embeddings) instead of technical-fit scoring.
+- [ ] Per-scene re-search button in the editor (`searchStockVideosForSceneAction`
+      exists) and attribution display.
+- [ ] Rendering using the selected clips.

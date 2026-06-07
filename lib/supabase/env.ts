@@ -67,3 +67,19 @@ export function getOpenAIEnv(): { apiKey: string } {
     apiKey: required('OPENAI_API_KEY', process.env.OPENAI_API_KEY),
   }
 }
+
+/**
+ * Stock-video provider keys — SERVER-ONLY and OPTIONAL. Missing keys must NOT
+ * crash the app: this returns `null` for any absent key so the stock-video
+ * service can detect which providers are available. Never `NEXT_PUBLIC`, never
+ * sent to the browser, never logged with values.
+ */
+export function getStockVideoEnv(): {
+  pexelsApiKey: string | null
+  pixabayApiKey: string | null
+} {
+  return {
+    pexelsApiKey: process.env.PEXELS_API_KEY?.trim() || null,
+    pixabayApiKey: process.env.PIXABAY_API_KEY?.trim() || null,
+  }
+}
