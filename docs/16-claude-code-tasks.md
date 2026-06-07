@@ -77,11 +77,17 @@
       `projects.status='audio_uploaded'`; `getCreateFlowDraft` hydrates audio.
       Mock fallback preserved when no `projectId`. Transcription still mock.
 
+- [x] Real transcription (OpenAI Whisper MVP): `lib/openai/client.ts`
+      (server-only) + `lib/services/transcription.service.ts` download audio from
+      Storage and call `whisper-1` (`verbose_json`, segment timestamps), REPLACE
+      `transcript_segments`, set `projects.status='transcribed'`. Actions in
+      `app/app/create/transcription/actions.ts`; `AnalysisProgressScreen` runs it
+      (error + retry). `OPENAI_API_KEY` is server-only. Scenes still mock.
+
 ## Next recommended tasks
 
-- [ ] Real transcription: kick off a transcription job from the uploaded
-      `audio_files` object and persist `transcript_segments` (replaces the mock
-      transcript seeded at analysis).
+- [ ] Real story analysis: from the real transcript, detect emotion + split into
+      scenes (replaces the mock scenes seeded after transcription).
 - [ ] Add archive/delete affordances to the project cards (actions already exist).
 - [ ] Add a drag-to-reorder UI for the storyboard (reducer action already exists).
 - [ ] Define the real backend seam (Supabase + async jobs) that will replace the

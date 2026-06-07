@@ -1,81 +1,176 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { CheckCircle2, Pencil, ChevronRight } from 'lucide-react'
+import { CheckCircle2, Pencil, ChevronRight, AlertTriangle, RotateCw } from 'lucide-react'
 import { useCreateFlow } from '@/components/providers/CreateFlowProvider'
 import { mockScenes, mockTranscript, mockCaptions } from '@/lib/mock-data'
-import { saveAnalysisAction, saveTranscriptAction } from '@/app/app/create/actions'
+import { saveAnalysisAction, saveScenesAction, saveTranscriptAction } from '@/app/app/create/actions'
+import { transcribeProjectAudioAction } from '@/app/app/create/transcription/actions'
 import { cn } from '@/lib/utils'
 
 interface AnalysisProgressProps {
   onComplete: () => void
 }
 
+/** Pipeline step labels (real transcription + mock storytelling). */
 const analysisSteps = [
-  { label: 'Transcribing audio...', duration: 1400 },
-  { label: 'Detecting emotion arcs...', duration: 1600 },
-  { label: 'Segmenting scenes...', duration: 1200 },
-  { label: 'Matching cinematic clips...', duration: 1800 },
-  { label: 'Applying style presets...', duration: 1000 },
-  { label: 'Building storyboard...', duration: 1100 },
+  { label: 'Preparing audio...' },
+  { label: 'Transcribing voice...' },
+  { label: 'Saving transcript...' },
+  { label: 'Detecting emotions...' },
+  { label: 'Building storyboard...' },
 ]
 
 export function AnalysisProgressScreen({ onComplete }: AnalysisProgressProps) {
-  const { setTranscript, setScenes, projectId } = useCreateFlow()
-  // Keep the latest projectId available inside the run-once effect closure.
+  const { state, setTranscript, setScenes, projectId } = useCreateFlow()
+
+  // Latest values for the async effect (avoids stale closures / hydration race).
   const projectIdRef = useRef(projectId)
   projectIdRef.current = projectId
+  const audioPathRef = useRef(state.audio.storagePath ?? null)
+  audioPathRef.current = state.audio.storagePath ?? null
+
   const [currentStep, setCurrentStep] = useState(0)
   const [progress, setProgress] = useState(0)
   const [done, setDone] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [retryKey, setRetryKey] = useState(0)
+  const progressRef = useRef(0)
 
   useEffect(() => {
-    let stepIdx = 0
-    let totalDuration = analysisSteps.reduce((a, s) => a + s.duration, 0)
-    let elapsed = 0
+    let cancelled = false
+    progressRef.current = 0
+    setProgress(0)
+    setCurrentStep(0)
+    setDone(false)
+    setError(null)
 
-    const runStep = () => {
-      if (stepIdx >= analysisSteps.length) {
-        // Mock analysis finished — populate the shared draft from mock data so
-        // the storyboard/transcript steps read coherent state. (No real STT/AI.)
-        const transcript = mockTranscript.map((l) => ({ ...l }))
-        const scenes = mockScenes.map((s) => ({ ...s }))
-        const captions = mockCaptions.map((c) => ({ ...c }))
-        setTranscript(transcript)
-        setScenes(scenes)
-        // Persist to Supabase for a real project (REPLACE strategy — no dupes).
-        const pid = projectIdRef.current
-        if (pid) {
-          void saveAnalysisAction(pid, { transcript, scenes, captions }).catch(() => {
-            /* best-effort; local draft already updated */
-          })
-        }
-        setProgress(100)
-        setDone(true)
-        setTimeout(onComplete, 1200)
+    // Smoothly animate the ring toward a target percentage.
+    const animateTo = (target: number, ms: number) =>
+      new Promise<void>((resolve) => {
+        const startP = progressRef.current
+        const startT = Date.now()
+        const id = setInterval(() => {
+          if (cancelled) {
+            clearInterval(id)
+            resolve()
+            return
+          }
+          const f = Math.min((Date.now() - startT) / ms, 1)
+          const val = Math.round(startP + (target - startP) * f)
+          progressRef.current = val
+          setProgress(val)
+          if (f >= 1) {
+            clearInterval(id)
+            resolve()
+          }
+        }, 16)
+      })
+
+    const finish = () => {
+      if (cancelled) return
+      setProgress(100)
+      setDone(true)
+      setTimeout(() => {
+        if (!cancelled) onComplete()
+      }, 1200)
+    }
+
+    // REAL path: a project with uploaded audio → run OpenAI transcription.
+    async function runReal(pid: string) {
+      setCurrentStep(0)
+      await animateTo(12, 500) // Preparing audio
+      if (cancelled) return
+
+      setCurrentStep(1) // Transcribing voice (waits on the OpenAI call)
+      await animateTo(40, 900)
+      const res = await transcribeProjectAudioAction(pid)
+      if (cancelled) return
+      if (!res.ok) {
+        setError(res.error ?? 'Transcription failed. Please try again.')
         return
       }
-      setCurrentStep(stepIdx)
-      const step = analysisSteps[stepIdx]
-      elapsed += step.duration
-      const targetProgress = Math.round((elapsed / totalDuration) * 100)
 
-      const start = Date.now()
-      const startProgress = progress
+      setCurrentStep(2) // Saving transcript
+      setTranscript(res.transcript)
+      await animateTo(65, 400)
+      if (cancelled) return
 
-      const anim = setInterval(() => {
-        const frac = Math.min((Date.now() - start) / step.duration, 1)
-        setProgress(Math.round(startProgress + (targetProgress - startProgress) * frac))
-        if (frac >= 1) {
-          clearInterval(anim)
-          stepIdx++
-          setTimeout(runStep, 300)
-        }
-      }, 16)
+      // Story analysis is still mock — seed + persist scenes (not transcript).
+      setCurrentStep(3) // Detecting emotions
+      const scenes = mockScenes.map((s) => ({ ...s }))
+      setScenes(scenes)
+      void saveScenesAction(pid, scenes).catch(() => {})
+      await animateTo(85, 500)
+      if (cancelled) return
+
+      setCurrentStep(4) // Building storyboard
+      await animateTo(100, 500)
+      finish()
     }
-    runStep()
+
+    // MOCK path: no project, or no uploaded audio → seed everything from mock.
+    async function runMock(pid: string | null) {
+      const transcript = mockTranscript.map((l) => ({ ...l }))
+      const scenes = mockScenes.map((s) => ({ ...s }))
+      const captions = mockCaptions.map((c) => ({ ...c }))
+      const targets = [12, 40, 62, 84, 100]
+      for (let i = 0; i < analysisSteps.length; i++) {
+        if (cancelled) return
+        setCurrentStep(i)
+        await animateTo(targets[i], 700)
+      }
+      if (cancelled) return
+      setTranscript(transcript)
+      setScenes(scenes)
+      if (pid) {
+        void saveAnalysisAction(pid, { transcript, scenes, captions }).catch(() => {})
+      }
+      finish()
+    }
+
+    const pid = projectIdRef.current
+    const hasAudio = !!audioPathRef.current
+    if (pid && hasAudio) {
+      void runReal(pid)
+    } else {
+      void runMock(pid)
+    }
+
+    return () => {
+      cancelled = true
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [retryKey])
+
+  const retry = () => setRetryKey((k) => k + 1)
+
+  // Friendly error state — stay on the analysis screen, offer a retry.
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[70vh] gap-6 py-10 text-center">
+        <div
+          className="w-16 h-16 rounded-2xl flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(214,69,69,0.1)', border: '1px solid rgba(214,69,69,0.25)' }}
+          aria-hidden="true"
+        >
+          <AlertTriangle className="w-7 h-7 text-red-accent" />
+        </div>
+        <div>
+          <h1 className="text-lg font-bold text-foreground mb-1">Transcription failed</h1>
+          <p className="text-sm text-secondary-text max-w-xs" role="alert">{error}</p>
+        </div>
+        <button
+          onClick={retry}
+          className="px-5 py-3 rounded-xl text-sm font-semibold text-white flex items-center gap-2 transition-all hover:opacity-90"
+          style={{ background: 'linear-gradient(135deg, #D64545, #B03030)' }}
+        >
+          <RotateCw className="w-4 h-4" />
+          Try again
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[70vh] gap-8 py-10">
@@ -164,7 +259,9 @@ export function AnalysisProgressScreen({ onComplete }: AnalysisProgressProps) {
       {done && (
         <div className="text-center">
           <p className="text-base font-bold" style={{ color: '#C9A45A' }}>Storyboard ready</p>
-          <p className="text-xs text-secondary-text mt-1">8 scenes · Noir Cinéma · 1:18</p>
+          <p className="text-xs text-secondary-text mt-1">
+            {state.transcript.length} transcript lines · {state.scenes.length} scenes
+          </p>
         </div>
       )}
     </div>

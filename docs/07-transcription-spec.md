@@ -1,35 +1,44 @@
 # 07 — Transcription Spec
 
-> Status: **Placeholder.** Transcription is **mocked** today
-> (`mockTranscript` + animated `AnalysisProgressScreen`). No real STT exists.
+> Status: **Implemented (MVP).** Real transcription via **OpenAI Whisper**
+> (`whisper-1`, `verbose_json`, segment timestamps) runs server-side over the
+> uploaded audio. Story analysis / scene-splitting is still **mock**.
 
-## Scope
+## How it works
 
-Convert uploaded audio into a timestamped, editable transcript that feeds the
-storytelling engine.
+1. The user uploads audio (task 06) → `audio_files` row + Storage object.
+2. On the analysis screen, for a real project with uploaded audio,
+   `transcribeProjectAudioAction(projectId)` runs:
+   - `lib/services/transcription.service.ts` (server-only) downloads the file
+     from the `audio-files` bucket via the session Supabase client (RLS),
+   - sends it to OpenAI (`lib/openai/client.ts`, server-only, `OPENAI_API_KEY`)
+     with `model: whisper-1`, `response_format: verbose_json`,
+     `timestamp_granularities: ['segment']`,
+   - **REPLACEs** `transcript_segments` (delete-then-insert; no duplicates on
+     re-run), then sets `projects.status = 'transcribed'`.
+3. The real transcript is returned to `CreateFlowProvider` (`setTranscript`) and
+   shown on the transcript screen. Hydration (`getCreateFlowDraft`) loads saved
+   `transcript_segments` so refresh/return keeps the real transcript.
 
-## Requirements (draft)
+Statuses: `audio_uploaded` → `transcribing` → `transcribed` (or `failed`).
 
-- Word- or line-level timestamps (UI shows `m:ss` per line).
-- Editable lines in the UI (already implemented against mock data).
-- Confidence/accuracy indicator (UI shows "98% accurate").
-- English-first; consider multilingual later.
+## Safety
 
-## Provider options
-
-> TODO: evaluate (OpenAI Whisper / hosted STT / Supabase edge function, etc.).
+- OpenAI is **server-only** — never called from the browser; the API key is not
+  a `NEXT_PUBLIC_*` var and is never returned/logged with its value.
+- Audio download + DB writes use the **session** Supabase client (RLS), never the
+  service role.
 
 ## Data shape
 
-See `TranscriptLine` in `lib/types.ts`:
+`TranscriptLine` (`lib/types.ts`): `{ id: number; start: string; text: string }`.
+DB `transcript_segments` store real `start_time_seconds` / `end_time_seconds`.
 
-```ts
-interface TranscriptLine { id: number; start: string; text: string }
-```
+## Not implemented / follow-ups
 
-## TODO
-
-- [ ] Choose STT provider and pricing model.
-- [ ] Define timestamp granularity (word vs. line).
-- [ ] Define how edits propagate to scene segmentation.
-- [ ] Replace `mockTranscript` with real results (later).
+- [ ] Word-level timestamps (currently segment-level).
+- [ ] Confidence surfacing (Whisper segment logprobs → a score).
+- [ ] Language selection passed to Whisper (currently auto-detect).
+- [ ] Background/queued transcription for long files (currently inline await).
+- [ ] **Real story analysis**: emotion detection + scene splitting from the real
+      transcript (scenes are still seeded from mock).

@@ -194,8 +194,28 @@ provider before continuing to `/app/create/style?projectId=…`.
   — persist metadata (REPLACE strategy); never use the service role.
 - With **no** `projectId`, the mock fallback is preserved.
 
-> Still mock: in-app **recording**, **transcription**, AI, stock-clip, and
-> rendering. Transcription of the uploaded file is the next milestone.
+### Real transcription (OpenAI Whisper)
+
+On the analysis step, a real project with uploaded audio is **transcribed for
+real**:
+
+- `lib/openai/client.ts` (server-only) + `lib/services/transcription.service.ts`
+  (server-only) download the audio from the `audio-files` bucket and call OpenAI
+  `whisper-1` (`verbose_json`, segment timestamps).
+- Timestamped rows are saved to **`transcript_segments`** (REPLACE strategy — no
+  duplicates on re-run); `projects.status` → `transcribed`.
+- `app/app/create/transcription/actions.ts` exposes
+  `transcribeProjectAudioAction` / `getTranscriptAction`.
+- `AnalysisProgressScreen` runs it (steps: Preparing audio → Transcribing voice →
+  Saving transcript → Detecting emotions → Building storyboard), shows a friendly
+  error + retry on failure, and feeds the real transcript into the provider. The
+  transcript screen + hydration show the saved real text.
+
+`OPENAI_API_KEY` is **server-only** (never `NEXT_PUBLIC`, never sent to the
+browser). With no `projectId`/audio, the mock flow is preserved.
+
+> Still mock: in-app **recording**, **story analysis / scene splitting**
+> (scenes are seeded from mock after transcription), stock-clip, and rendering.
 
 ## Current limitations
 

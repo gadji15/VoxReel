@@ -56,3 +56,14 @@ export function getSupabaseAdminEnv(): { url: string; serviceRoleKey: string } {
     ),
   }
 }
+
+/**
+ * OpenAI API key — SERVER-ONLY. It is NOT a `NEXT_PUBLIC_*` var, so it is never
+ * sent to the browser. Only call this from server-only modules (see
+ * `lib/openai/client.ts`). The error includes the variable name, never its value.
+ */
+export function getOpenAIEnv(): { apiKey: string } {
+  return {
+    apiKey: required('OPENAI_API_KEY', process.env.OPENAI_API_KEY),
+  }
+}

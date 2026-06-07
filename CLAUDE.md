@@ -50,9 +50,18 @@ This repo is a **frontend-only UI skeleton**, generated with v0.
   `projects.status='audio_uploaded'`. Helpers: `lib/upload/audio-upload.ts`
   (validate/duration/upload), `lib/services/audio.service.ts` (server-only),
   `app/app/create/audio/actions.ts`. `getCreateFlowDraft` hydrates the audio row.
-  No `projectId` → mock fallback. **Still mock: recording, transcription, AI,
-  stock-clip, rendering.** Never use the service role / `lib/supabase/admin` for
-  uploads.
+  No `projectId` → mock fallback. Never use the service role / `lib/supabase/admin`
+  for uploads.
+- **Real transcription (OpenAI Whisper).** `lib/openai/client.ts` (server-only,
+  `OPENAI_API_KEY` — never `NEXT_PUBLIC`, never browser) +
+  `lib/services/transcription.service.ts` (server-only) download the project's
+  audio from Storage and call `whisper-1` (`verbose_json`, segment timestamps),
+  REPLACE `transcript_segments`, and set `projects.status='transcribed'`
+  (`audio_uploaded`→`transcribing`→`transcribed`/`failed`). Actions:
+  `app/app/create/transcription/actions.ts`. `AnalysisProgressScreen` runs real
+  transcription when a project has uploaded audio (friendly error + retry),
+  feeds the real transcript to the provider, and **still seeds mock scenes**
+  (no real story analysis yet). No `projectId`/audio → mock fallback.
 - Emotion colors come from a single source of truth: `lib/emotions.ts`
   (`getEmotionColor()` / `emotionColorMap`). Do not re-inline emotion hex values.
 - A first **Supabase schema** exists at
