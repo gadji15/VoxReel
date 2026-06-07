@@ -32,9 +32,18 @@
       Rendering (`renderStatus` + `setExportMetadata`), Export (reads export
       metadata with fallbacks). Added provider actions `setExportMetadata` and
       `updateProjectTitle`; added `ExportMetadata.createdAt`.
+- [x] Initial Supabase schema migration
+      (`supabase/migrations/001_initial_schema.sql`): 12 tables, indexes,
+      `updated_at` + new-user triggers, RLS policies, private storage buckets.
+      Added `.env.example` and `supabase/README.md`. **Not executed
+      automatically; frontend NOT connected to Supabase.** Next: create a
+      Supabase project and run the migration manually (SQL Editor / CLI).
 
 ## Next recommended tasks
 
+- [ ] Create a Supabase project, run `001_initial_schema.sql`, and add a
+      Supabase client (`@supabase/supabase-js`) + typed DB types — still without
+      changing the mock UI.
 - [ ] Add a drag-to-reorder UI for the storyboard (reducer action already exists).
 - [ ] Define the real backend seam (Supabase + async jobs) that will replace the
       mock audio/analysis/render lifecycle behind the same provider actions.

@@ -1,8 +1,21 @@
 # 05 — Database Schema
 
-> Status: **Placeholder.** No database exists yet. This will define the canonical
-> Supabase/Postgres schema. The UI types in `lib/types.ts` are a starting point,
-> not the source of truth.
+> Status: **Initial migration written.** The first canonical schema now lives in
+> `supabase/migrations/001_initial_schema.sql`. It is **not executed
+> automatically** and the **frontend is not connected to Supabase yet**. The UI
+> types in `lib/types.ts` remain the frontend draft shapes, not the DB source of
+> truth.
+
+## Implemented tables (migration 001)
+
+`profiles`, `projects`, `audio_files`, `transcript_segments`, `scenes`,
+`captions`, `clip_candidates`, `selected_clips`, `render_jobs`, `exports`,
+`project_events`, `job_events` — with uuid PKs (`gen_random_uuid()`), indexes,
+`updated_at` triggers, a new-user → `profiles` trigger, Row Level Security
+(`auth.uid() = user_id`), and private storage buckets (`audio-files`,
+`video-exports`, `thumbnails`, `video-clips-cache`).
+
+See `supabase/README.md` for how to apply it.
 
 ## Goals
 

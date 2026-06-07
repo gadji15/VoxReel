@@ -37,6 +37,12 @@ This repo is a **frontend-only UI skeleton**, generated with v0.
   or rendering.
 - Emotion colors come from a single source of truth: `lib/emotions.ts`
   (`getEmotionColor()` / `emotionColorMap`). Do not re-inline emotion hex values.
+- A first **Supabase schema** exists at
+  `supabase/migrations/001_initial_schema.sql` (tables, indexes, triggers, RLS,
+  storage buckets). It is **schema only** — not executed automatically, and the
+  **frontend is NOT connected to Supabase**. Apply it manually (SQL Editor /
+  Supabase CLI); see `supabase/README.md`. `.env.example` lists the keys (no real
+  secrets committed; `.env.local` is gitignored).
 
 ## Current stack
 
@@ -112,6 +118,9 @@ lib/
   mock-data.ts            # mock content for the UI
   utils.ts                # cn() and helpers
 docs/                     # product + technical specs (00–16)
+supabase/                 # database schema (NOT connected to the app yet)
+  migrations/             # SQL migrations, run manually (Editor / Supabase CLI)
+  README.md               # how to apply the migration
 public/                   # static assets
 ```
 

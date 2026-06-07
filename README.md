@@ -69,6 +69,8 @@ lib/
   types.ts           # shared UI types (incl. create-flow draft state)
   mock-data.ts       # mock content driving the UI
 docs/                # product + technical specs (00–16)
+supabase/
+  migrations/        # SQL schema migrations (not run automatically)
 ```
 
 Navigation uses real App Router routes. Each `/app/**` page is a thin wrapper
@@ -88,6 +90,21 @@ lifecycle is wired to this state** (all mock):
 
 It holds draft UI state only; there is still no backend, real upload,
 transcription, AI, or rendering.
+
+## Database (Supabase) — schema only, not connected
+
+The initial database schema lives in
+[`supabase/migrations/001_initial_schema.sql`](supabase/migrations/001_initial_schema.sql):
+profiles, projects, audio files, transcript segments, scenes, captions, clip
+candidates, selected clips, render jobs, exports, and event-history tables —
+plus indexes, `updated_at` triggers, a new-user → profile trigger, Row Level
+Security policies, and private storage buckets.
+
+> ⚠️ The migration is **not executed automatically** and the **frontend is not
+> connected to Supabase yet**. To apply it, create a Supabase project and run the
+> SQL manually (SQL Editor) or via the Supabase CLI — see
+> [`supabase/README.md`](supabase/README.md). Copy [`.env.example`](.env.example)
+> to `.env.local` and fill in keys when you begin wiring the backend.
 
 ## Current limitations
 
