@@ -51,12 +51,22 @@
       (`getCurrentUser`/`requireUser`). **CreateFlowProvider still mock-driven;
       no project persistence/CRUD.**
 
+- [x] Project persistence (first real data): `lib/services/projects.service.ts`
+      (server-only CRUD), `lib/mappers/project.mapper.ts`,
+      `app/app/projects/actions.ts` (create/archive/delete). Dashboard & Projects
+      pages fetch real Supabase projects server-side; `HomeDashboard`/
+      `ProjectsScreen` take an optional `projects` prop (mock fallback). Create
+      buttons make a real row and redirect to
+      `/app/create/upload?projectId=…`; opening a project →
+      `/app/create/storyboard?projectId=…`. Settings shows the real user.
+      **Create flow still mock-driven; `projectId` only carried in the URL.**
+
 ## Next recommended tasks
 
-- [ ] Project persistence: back `CreateFlowProvider` actions with Supabase
-      reads/writes (behind the same interface) now that auth exists.
-- [ ] Show the signed-in user's name/email in the app shell / Settings header
-      (replace the hardcoded "Alex Moreno").
+- [ ] Hydrate `CreateFlowProvider` from Supabase using the `?projectId=…` param
+      (load project + scenes/transcript; persist edits) — behind the same
+      provider interface so the UI doesn't change.
+- [ ] Add archive/delete affordances to the project cards (actions already exist).
 - [ ] Add a drag-to-reorder UI for the storyboard (reducer action already exists).
 - [ ] Define the real backend seam (Supabase + async jobs) that will replace the
       mock audio/analysis/render lifecycle behind the same provider actions.

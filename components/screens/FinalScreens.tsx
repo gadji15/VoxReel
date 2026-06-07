@@ -461,13 +461,17 @@ export function ExportSuccessScreen({ onNewReel, onHome }: ExportSuccessProps) {
 /* ── Settings Screen ── */
 interface SettingsScreenProps {
   onBack: () => void
+  /** Authenticated user's email, if available. */
+  userEmail?: string
+  /** Authenticated user's display name (profile full_name), if available. */
+  userName?: string
 }
 
-const settingsSections = [
+const buildSettingsSections = (profileValue: string) => [
   {
     title: 'Account',
     items: [
-      { icon: User, label: 'Profile', value: 'Alex Moreno' },
+      { icon: User, label: 'Profile', value: profileValue },
       { icon: Bell, label: 'Notifications', value: 'On' },
       { icon: Shield, label: 'Privacy', value: '' },
     ],
@@ -497,7 +501,13 @@ const settingsSections = [
   },
 ]
 
-export function SettingsScreen({ onBack }: SettingsScreenProps) {
+export function SettingsScreen({ onBack, userEmail, userName }: SettingsScreenProps) {
+  // Prefer the profile name; fall back to the email's local part, then a neutral
+  // label. Never invent a fake identity for a real signed-in user.
+  const displayName = userName?.trim() || userEmail?.split('@')[0] || 'VoxReel Creator'
+  const avatarLetter = (userName || userEmail || 'V').charAt(0).toUpperCase()
+  const settingsSections = buildSettingsSections(displayName)
+
   return (
     <div className="flex flex-col gap-6 pb-24 lg:pb-6">
       {/* Header with avatar */}
@@ -507,11 +517,11 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
           style={{ background: 'linear-gradient(135deg, #D64545, #7C5CFF)' }}
           aria-hidden="true"
         >
-          A
+          {avatarLetter}
         </div>
         <div className="text-center">
-          <h1 className="text-xl font-bold text-foreground">Alex Moreno</h1>
-          <p className="text-sm text-secondary-text">alex@voxreel.ai</p>
+          <h1 className="text-xl font-bold text-foreground">{displayName}</h1>
+          <p className="text-sm text-secondary-text">{userEmail ?? 'Signed in'}</p>
           <div
             className="inline-flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full text-xs font-bold"
             style={{ backgroundColor: 'rgba(214,179,106,0.1)', border: '1px solid rgba(214,179,106,0.3)', color: '#D6B36A' }}

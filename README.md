@@ -136,9 +136,30 @@ Email/password auth is wired up and **`/app/*` is protected**:
 - Sign-out lives in **Settings** (`SignOutButton`). Server helpers:
   `getCurrentUser()` / `requireUser()` in `lib/supabase/auth.ts` (server-only).
 
-> **The create flow is still 100% mock-driven** — auth gates the routes, but
-> `CreateFlowProvider` does not read/write Supabase yet, and there is no project
-> persistence.
+> Auth gates the routes, but the **create flow itself is still mock-driven**
+> (see project persistence below).
+
+### Project persistence (first real data)
+
+The dashboard and projects library now read **real Supabase projects** for the
+signed-in user:
+
+- `lib/services/projects.service.ts` (server-only) — `getCurrentUserProjects`,
+  `getRecentProjects`, `getProjectById`, `createProject`, `archiveProject`,
+  `deleteProject` (all scoped to `auth.uid()`).
+- `lib/mappers/project.mapper.ts` — maps DB rows to the UI `Project` shape
+  (real `status`/duration; `views` is never fabricated).
+- `app/app/projects/actions.ts` — server actions `createNewProjectAction`
+  (creates a row → redirects to `/app/create/upload?projectId=…`),
+  `archiveProjectAction`, `deleteProjectAction`.
+- `app/app` and `app/app/projects` pages fetch server-side; `HomeDashboard` /
+  `ProjectsScreen` take an optional `projects` prop (mock fallback for dev).
+  Empty state shown when a real user has no projects.
+- Settings shows the **authenticated user's** email / name.
+
+> The **create flow remains mock-driven**: `projectId` is carried in the URL
+> (`?projectId=…`) for a future task to hydrate `CreateFlowProvider` from
+> Supabase. No audio upload / transcription / rendering yet.
 
 ## Current limitations
 

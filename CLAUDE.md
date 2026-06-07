@@ -57,7 +57,17 @@ This repo is a **frontend-only UI skeleton**, generated with v0.
   `/api/health/supabase`. Auth UI in `components/auth/*`; pages `app/login`,
   `app/signup`; code exchange in `app/auth/callback/route.ts`; sign-out in
   Settings. Server helpers `getCurrentUser()`/`requireUser()` in
-  `lib/supabase/auth.ts`. **No project persistence / CRUD yet.**
+  `lib/supabase/auth.ts`.
+- **Project persistence (first real data).** `lib/services/projects.service.ts`
+  (server-only) does CRUD on the user's `projects` (`getCurrentUserProjects`,
+  `getRecentProjects`, `getProjectById`, `createProject`, `archiveProject`,
+  `deleteProject`). `lib/mappers/project.mapper.ts` maps DB rows → UI `Project`
+  (never fabricates `views`). Server actions in `app/app/projects/actions.ts`.
+  The `/app` and `/app/projects` pages are server components that fetch real
+  data; `HomeDashboard`/`ProjectsScreen` accept an optional `projects` prop
+  (mock fallback when omitted). Settings shows the real user. **The create flow
+  is still mock-driven** — `projectId` is only carried in the URL
+  (`?projectId=…`) for a future provider-hydration task.
 
 ## Current stack
 
@@ -111,11 +121,12 @@ When in doubt, ask before adding a dependency or a backend concern.
 app/                      # Next.js App Router
   page.tsx                # public landing page (/)
   layout.tsx, globals.css
-  app/                    # frontend-only app section (no auth gate yet)
+  app/                    # app section (auth-protected by middleware.ts)
     layout.tsx            # wraps all /app/* routes in VoxReelAppShell
-    page.tsx              # /app          → HomeDashboard
-    projects/page.tsx     # /app/projects → ProjectsScreen
-    settings/page.tsx     # /app/settings → SettingsScreen
+    page.tsx              # /app          → server-fetch → DashboardConnected
+    projects/page.tsx     # /app/projects → server-fetch → ProjectsConnected
+    projects/actions.ts   # project server actions (create/archive/delete)
+    settings/page.tsx     # /app/settings → SettingsConnected (real user)
     create/               # the create flow (upload → … → export)
       page.tsx            # /app/create   → redirects to /app/create/upload
       upload, style, analysis, transcript, storyboard,
@@ -125,6 +136,7 @@ app/
   login/, signup/         # public auth pages
   auth/callback/          # OAuth / email-confirmation code exchange
 components/
+  app/                    # server-page → screen connectors (Dashboard/Projects/Settings)
   auth/                   # AuthCard, LoginForm, SignupForm, SignOutButton
   layout/                 # VoxReelAppShell (sidebar + bottom nav + main)
   providers/              # CreateFlowProvider (create-flow draft state)
@@ -137,6 +149,8 @@ lib/
   types.ts                # shared UI types (incl. CreateFlowState)
   mock-data.ts            # mock content for the UI
   utils.ts                # cn() and helpers
+  services/               # server-only data access (projects.service.ts)
+  mappers/                # DB row → UI shape (project.mapper.ts)
   supabase/               # Supabase client layer (browser/server/admin/types)
 docs/                     # product + technical specs (00–16)
 supabase/                 # database schema (NOT connected to the app yet)

@@ -4,8 +4,11 @@ import { Mic, TrendingUp, Play, ChevronRight, Bell } from 'lucide-react'
 import { ProjectCard } from '@/components/voxreel/ProjectCard'
 import { StaticWaveform } from '@/components/voxreel/AudioWaveform'
 import { mockProjects } from '@/lib/mock-data'
+import type { Project } from '@/lib/types'
 
 interface HomeDashboardProps {
+  /** Real recent projects. If omitted, falls back to mock data (dev). */
+  projects?: Project[]
   onCreateReel: () => void
   onOpenProject: (id: string) => void
 }
@@ -16,7 +19,10 @@ const stats = [
   { label: 'AI Accuracy', value: '91%', sub: 'Avg clip match', color: '#F0EDE6' },
 ]
 
-export function HomeDashboard({ onCreateReel, onOpenProject }: HomeDashboardProps) {
+export function HomeDashboard({ projects, onCreateReel, onOpenProject }: HomeDashboardProps) {
+  // Real data when provided (even if empty); mock fallback for dev otherwise.
+  const recent = projects ?? mockProjects.slice(0, 3)
+
   return (
     <div className="flex flex-col gap-8 pb-28 lg:pb-10">
 
@@ -100,9 +106,28 @@ export function HomeDashboard({ onCreateReel, onOpenProject }: HomeDashboardProp
           </button>
         </div>
         <div className="flex flex-col gap-3">
-          {mockProjects.slice(0, 3).map((project) => (
-            <ProjectCard key={project.id} project={project} onClick={() => onOpenProject(project.id)} />
-          ))}
+          {recent.length > 0 ? (
+            recent.map((project) => (
+              <ProjectCard key={project.id} project={project} onClick={() => onOpenProject(project.id)} />
+            ))
+          ) : (
+            <div
+              className="rounded-2xl border border-dashed border-border p-8 flex flex-col items-center text-center gap-3"
+              style={{ backgroundColor: '#0E0F14' }}
+            >
+              <p className="text-sm font-semibold text-foreground">No reels yet</p>
+              <p className="text-xs text-secondary-text max-w-[220px]">
+                Create your first cinematic reel and it&apos;ll show up here.
+              </p>
+              <button
+                onClick={onCreateReel}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90"
+                style={{ background: 'linear-gradient(135deg, #D64545, #B03030)' }}
+              >
+                Create Reel
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

@@ -4,20 +4,25 @@ import { Search, Filter, Plus, Grid3X3, List } from 'lucide-react'
 import { useState } from 'react'
 import { ProjectCard } from '@/components/voxreel/ProjectCard'
 import { mockProjects } from '@/lib/mock-data'
+import type { Project } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 interface ProjectsScreenProps {
+  /** Real projects. If omitted, falls back to mock data (dev). */
+  projects?: Project[]
   onCreateReel: () => void
   onOpenProject: (id: string) => void
 }
 
 const filters = ['All', 'Published', 'Rendering', 'Draft']
 
-export function ProjectsScreen({ onCreateReel, onOpenProject }: ProjectsScreenProps) {
+export function ProjectsScreen({ projects, onCreateReel, onOpenProject }: ProjectsScreenProps) {
   const [activeFilter, setActiveFilter] = useState('All')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list')
 
-  const filtered = mockProjects.filter((p) => {
+  const source = projects ?? mockProjects
+
+  const filtered = source.filter((p) => {
     if (activeFilter === 'All') return true
     if (activeFilter === 'Published') return p.status === 'complete'
     if (activeFilter === 'Rendering') return p.status === 'rendering'
