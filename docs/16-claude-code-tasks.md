@@ -109,10 +109,22 @@
       Actions in `app/app/create/clip-cache/actions.ts`; analysis screen caches
       after stock search (non-fatal, idempotent). See `docs/10-clip-cache-spec.md`.
 
+- [x] Rendering (FFmpeg MVP): `lib/render/` (types + pure `timeline.ts` +
+      server-only `ffmpeg-renderer.ts`) + `lib/services/render.service.ts` build a
+      1080×1920 plan and render via FFmpeg (scale/crop → concat → mux audio,
+      optional caption overlay), upload to `video-exports`, write `render_jobs` +
+      `exports`, set `projects.status='rendered'`. Actions in
+      `app/app/create/render/actions.ts`; `RenderProgressScreen` /
+      `ExportSuccessScreen` use real metadata + a signed download URL (mock
+      fallback kept). FFmpeg resolved at runtime (not bundled); synchronous MVP.
+      See `docs/14-rendering-engine-spec.md`.
+
 ## Next recommended tasks
 
-- [ ] Rendering: a real pipeline (Remotion/FFmpeg) that composes the cached clips
-      + captions + motion/transition into a 9:16 MP4 → `render_jobs` / `exports`.
+- [ ] Background render queue (`render_jobs` progress polled via
+      `getRenderStatusAction`) + a container worker (current render is a blocking
+      server action and needs FFmpeg at runtime — not serverless-friendly).
+- [ ] Real caption engine (multi-line, styled, timed) consumed by the renderer.
 - [ ] Add archive/delete affordances to the project cards (actions already exist).
 - [ ] Add a drag-to-reorder UI for the storyboard (reducer action already exists).
 - [ ] Define the real backend seam (Supabase + async jobs) that will replace the

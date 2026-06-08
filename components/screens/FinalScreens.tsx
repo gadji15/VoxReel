@@ -10,7 +10,16 @@ import {
 import { VideoPreviewPhoneFrame } from '@/components/voxreel/VideoPreviewPhoneFrame'
 import { useCreateFlow } from '@/components/providers/CreateFlowProvider'
 import { SignOutButton } from '@/components/auth/SignOutButton'
+import { startRenderProjectAction, getLatestExportAction } from '@/app/app/create/render/actions'
+import { formatBytes } from '@/lib/upload/audio-upload'
+import type { RenderExportMetadata } from '@/lib/render/types'
 import { cn } from '@/lib/utils'
+
+/** Format seconds as `m:ss`. */
+function fmtSeconds(total: number): string {
+  const s = Math.max(0, Math.round(total))
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
 
 /* ── Vertical 9:16 Preview Screen ── */
 interface PreviewScreenProps {
@@ -201,10 +210,12 @@ interface RenderProgressProps {
 }
 
 export function RenderProgressScreen({ onComplete, onBack }: RenderProgressProps) {
-  const { state, setRenderStatus, setExportMetadata } = useCreateFlow()
+  const { state, projectId, setRenderStatus, setExportMetadata } = useCreateFlow()
   const [progress, setProgress] = useState(0)
   const [currentStage, setCurrentStage] = useState(0)
   const [done, setDone] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [attempt, setAttempt] = useState(0)
 
   const stages = [
     'Preparing timeline...',
@@ -216,40 +227,128 @@ export function RenderProgressScreen({ onComplete, onBack }: RenderProgressProps
   ]
 
   useEffect(() => {
-    // Mock render lifecycle — no Remotion/FFmpeg, no real encoding.
+    let cancelled = false
+    setError(null)
+    setDone(false)
+    setProgress(0)
     setRenderStatus('rendering')
 
-    const totalTime = 6000
-    const start = Date.now()
-    const id = setInterval(() => {
-      const p = Math.min(((Date.now() - start) / totalTime) * 100, 100)
+    // ── Mock fallback (no real project) ──
+    if (!projectId) {
+      const totalTime = 6000
+      const start = Date.now()
+      const id = setInterval(() => {
+        const p = Math.min(((Date.now() - start) / totalTime) * 100, 100)
+        setProgress(Math.round(p))
+        setCurrentStage(Math.min(Math.floor(p / (100 / stages.length)), stages.length - 1))
+        if (p >= 100) {
+          clearInterval(id)
+          setDone(true)
+          const slug =
+            state.projectTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') ||
+            'voxreel-reel'
+          setRenderStatus('complete')
+          setExportMetadata({
+            fileName: `${slug}.mp4`,
+            duration: state.audio.duration ?? '1:18',
+            resolution: '1080 × 1920',
+            quality: '1080p',
+            size: '24.8 MB',
+            format: 'MP4',
+            createdAt: new Date().toISOString(),
+          })
+          setTimeout(onComplete, 1500)
+        }
+      }, 50)
+      return () => clearInterval(id)
+    }
+
+    // ── Real render (projectId present): the server action is synchronous, so
+    //    we animate progress up to ~90% while we await the result. ──
+    let p = 0
+    const ticker = setInterval(() => {
+      p = Math.min(p + 1.4, 90)
       setProgress(Math.round(p))
       setCurrentStage(Math.min(Math.floor(p / (100 / stages.length)), stages.length - 1))
-      if (p >= 100) {
-        clearInterval(id)
+    }, 250)
+
+    startRenderProjectAction(projectId)
+      .then((result) => {
+        if (cancelled) return
+        clearInterval(ticker)
+        if (!result.ok || !result.export) {
+          setRenderStatus('error')
+          setError(result.error ?? 'Render failed. Please try again.')
+          return
+        }
+        const exp = result.export
+        setProgress(100)
+        setCurrentStage(stages.length - 1)
         setDone(true)
-        // Persist the (mock) export result into the shared draft.
-        const slug =
-          state.projectTitle
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/(^-|-$)/g, '') || 'voxreel-reel'
         setRenderStatus('complete')
         setExportMetadata({
-          fileName: `${slug}.mp4`,
-          duration: state.audio.duration ?? '1:18',
-          resolution: '1080 × 1920',
-          quality: '1080p',
-          size: '24.8 MB',
-          format: 'MP4',
-          createdAt: new Date().toISOString(),
+          fileName: exp.fileName,
+          duration: fmtSeconds(exp.durationSeconds),
+          resolution: `${exp.width} × ${exp.height}`,
+          quality: `${exp.height}p`,
+          size: formatBytes(exp.sizeBytes),
+          format: exp.format.toUpperCase(),
+          createdAt: exp.createdAt,
+          fps: exp.fps,
+          storageBucket: exp.storageBucket,
+          storagePath: exp.storagePath,
+          downloadUrl: exp.downloadUrl,
         })
         setTimeout(onComplete, 1500)
-      }
-    }, 50)
-    return () => clearInterval(id)
+      })
+      .catch((e) => {
+        if (cancelled) return
+        clearInterval(ticker)
+        setRenderStatus('error')
+        setError(e instanceof Error ? e.message : 'Render failed. Please try again.')
+      })
+
+    return () => {
+      cancelled = true
+      clearInterval(ticker)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [attempt])
+
+  // Friendly error + retry (real render failed) — stays on the render screen.
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[70vh] gap-5 py-10 text-center">
+        <div
+          className="w-16 h-16 rounded-2xl flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(214,69,69,0.1)', border: '1px solid rgba(214,69,69,0.25)' }}
+          aria-hidden="true"
+        >
+          <Film className="w-7 h-7 text-red-accent" />
+        </div>
+        <div>
+          <h1 className="text-lg font-bold text-foreground mb-1">Render didn’t finish</h1>
+          <p className="text-sm text-secondary-text max-w-xs mx-auto">{error}</p>
+        </div>
+        <div className="flex gap-3">
+          <button
+            onClick={onBack}
+            className="px-5 py-3 rounded-xl border border-border text-sm font-semibold text-secondary-text hover:text-foreground hover:bg-muted transition-all"
+            style={{ backgroundColor: '#111318' }}
+          >
+            Back
+          </button>
+          <button
+            onClick={() => setAttempt((a) => a + 1)}
+            className="px-5 py-3 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
+            style={{ background: 'linear-gradient(135deg, #D64545, #B03030)' }}
+          >
+            Retry render
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[70vh] gap-8 py-10">
@@ -346,14 +445,34 @@ interface ExportSuccessProps {
 }
 
 export function ExportSuccessScreen({ onNewReel, onHome }: ExportSuccessProps) {
-  const { state } = useCreateFlow()
+  const { state, projectId } = useCreateFlow()
   const exp = state.export
+  const [remote, setRemote] = useState<RenderExportMetadata | null>(null)
 
-  // Read export metadata from the shared draft, with friendly fallbacks so a
-  // direct deep-link (no render run) still renders without crashing.
-  const fileName = exp.fileName ?? 'voxreel-reel.mp4'
+  // For a real project, load the latest export (+ signed download URL).
+  useEffect(() => {
+    if (!projectId) return
+    let cancelled = false
+    getLatestExportAction(projectId)
+      .then((r) => {
+        if (!cancelled && r) setRemote(r)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [projectId])
+
+  // Prefer real export metadata; fall back to the draft, then safe defaults.
+  const fileName = remote?.fileName ?? exp.fileName ?? 'voxreel-reel.mp4'
+  const resolution = remote ? `${remote.width} × ${remote.height}` : exp.resolution
+  const quality = remote ? `${remote.height}p` : exp.quality
+  const duration = remote ? fmtSeconds(remote.durationSeconds) : exp.duration
+  const size = remote ? formatBytes(remote.sizeBytes) : exp.size
+  const format = remote ? remote.format.toUpperCase() : exp.format
+  const downloadUrl = remote?.downloadUrl ?? exp.downloadUrl ?? null
   const metaLine =
-    [exp.resolution, exp.quality, exp.duration, exp.size].filter(Boolean).join(' · ') ||
+    [resolution, quality, duration, size].filter(Boolean).join(' · ') ||
     'Export details unavailable'
 
   return (
@@ -427,15 +546,31 @@ export function ExportSuccessScreen({ onNewReel, onHome }: ExportSuccessProps) {
         </div>
       </div>
 
-      {/* Download */}
-      <button
-        className="w-full py-4 rounded-2xl border border-border flex items-center justify-center gap-2 text-sm font-semibold text-foreground hover:bg-muted transition-all"
-        style={{ backgroundColor: '#111318' }}
-        aria-label="Download reel file"
-      >
-        <Download className="w-4 h-4" />
-        Download to Device
-      </button>
+      {/* Download — real signed URL when available, else a disabled placeholder */}
+      {downloadUrl ? (
+        <a
+          href={downloadUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          download={fileName}
+          className="w-full py-4 rounded-2xl border border-border flex items-center justify-center gap-2 text-sm font-semibold text-foreground hover:bg-muted transition-all"
+          style={{ backgroundColor: '#111318' }}
+          aria-label="Download reel file"
+        >
+          <Download className="w-4 h-4" />
+          Download to Device
+        </a>
+      ) : (
+        <button
+          className="w-full py-4 rounded-2xl border border-border flex items-center justify-center gap-2 text-sm font-semibold text-foreground hover:bg-muted transition-all disabled:opacity-60"
+          style={{ backgroundColor: '#111318' }}
+          aria-label="Download reel file"
+          disabled
+        >
+          <Download className="w-4 h-4" />
+          Download to Device
+        </button>
+      )}
 
       {/* Secondary actions */}
       <div className="flex gap-3 w-full">

@@ -273,8 +273,29 @@ cached** in the private `video-clips-cache` bucket (ready for the renderer):
   after stock search (non-fatal — failures keep provider links and never delete
   scenes/clips). Idempotent: re-running replaces, never duplicates.
 
-> Still not implemented: full **captions** and **rendering** (Remotion/FFmpeg).
-> Rendering — consuming the cached clips — is the next milestone.
+### Rendering (FFmpeg MVP)
+
+A real **1080×1920 MP4** is rendered server-side from the project's scenes,
+cached clips, and audio:
+
+- `lib/render/` (types, pure `timeline.ts`, server-only `ffmpeg-renderer.ts`) +
+  `lib/services/render.service.ts` build the plan, run FFmpeg (scale/crop each
+  scene to 9:16 → concat → mux audio, optional caption overlay), upload to
+  `video-exports/{user}/{project}/final.mp4`, and record `render_jobs` +
+  `exports` (`projects.status='rendered'`).
+- `app/app/create/render/actions.ts` — `startRenderProjectAction`,
+  `getRenderStatusAction`, `getLatestExportAction`. `RenderProgressScreen` runs a
+  real render for a real project (mock fallback + retry-on-error otherwise);
+  `ExportSuccessScreen` shows real metadata and a short-lived **signed download
+  URL**.
+- **FFmpeg is required at runtime** (not bundled): set `FFMPEG_PATH`, install
+  `ffmpeg-static` (`pnpm add ffmpeg-static`), or have `ffmpeg` on PATH. The MVP
+  render is **synchronous/in-memory** — run on a Node server/container, not
+  serverless. See [`docs/14-rendering-engine-spec.md`](docs/14-rendering-engine-spec.md).
+
+> Still MVP, not final cinematic polish: no motion/transitions/color-grade yet,
+> single-line captions, and a blocking render (no queue). A full **captions
+> engine** and render polish are the next milestones.
 
 ## Current limitations
 

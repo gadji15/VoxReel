@@ -91,7 +91,19 @@ This repo is a **frontend-only UI skeleton**, generated with v0.
   Actions: `app/app/create/clip-cache/actions.ts`. The analysis screen caches
   automatically after stock search (non-fatal; idempotent — one failing clip
   never aborts the run). Scenes hydrate `clipCachedBucket`/`clipCachedPath`.
-  **Still not implemented: captions, rendering.**
+- **Real rendering (FFmpeg MVP).** `lib/render/` (`types.ts`, pure
+  `timeline.ts`, server-only `ffmpeg-renderer.ts`) + `lib/services/render.service.ts`
+  (server-only) build a 1080×1920 plan from scenes + cached clips + audio, run
+  FFmpeg (`child_process`) to scale/crop each scene, concat, and mux audio,
+  upload the MP4 to `video-exports/{user}/{project}/final.mp4`, and write
+  `render_jobs` + `exports` (status `queued`→`processing`→`completed`/`failed`;
+  `projects.status='rendered'`). Actions: `app/app/create/render/actions.ts`.
+  `RenderProgressScreen` runs it for real projects (mock fallback otherwise, with
+  retry on error); `ExportSuccessScreen` shows real metadata + a short-lived
+  signed download URL. FFmpeg is resolved at runtime (`FFMPEG_PATH` →
+  `ffmpeg-static` if installed → PATH) — **not bundled**; synchronous/in-memory
+  MVP (needs a Node server/container, not serverless). **Captions engine + render
+  polish still pending.**
 - Emotion colors come from a single source of truth: `lib/emotions.ts`
   (`getEmotionColor()` / `emotionColorMap`). Do not re-inline emotion hex values.
 - A first **Supabase schema** exists at

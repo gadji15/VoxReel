@@ -160,8 +160,15 @@ export interface ExportMetadata {
   duration: string | null
   /** Human-readable estimated size (e.g. `24.8 MB`). */
   size: string | null
-  /** ISO timestamp of when the (mock) export was produced, else `null`. */
+  /** ISO timestamp of when the export was produced, else `null`. */
   createdAt: string | null
+  /** Frames per second of the rendered output. */
+  fps?: number | null
+  /** Supabase Storage location of the rendered MP4 (real renders). */
+  storageBucket?: string | null
+  storagePath?: string | null
+  /** Short-lived signed download URL for the rendered MP4. */
+  downloadUrl?: string | null
 }
 
 /**
