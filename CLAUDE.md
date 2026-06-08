@@ -104,6 +104,15 @@ This repo is a **frontend-only UI skeleton**, generated with v0.
   `ffmpeg-static` if installed → PATH) — **not bundled**; synchronous/in-memory
   MVP (needs a Node server/container, not serverless). **Captions engine + render
   polish still pending.**
+- **Render diagnostics.** `lib/render/environment.ts` (server-only)
+  `detectRenderEnvironment()` / `isFfmpegAvailable()` / `getFfmpegDiagnostics()`
+  verify FFmpeg (spawns `ffmpeg -version`) and classify the runtime
+  (`local`/`vercel`/`node-server`). `GET /api/health/render` returns
+  `{ ok, ffmpegAvailable, ffmpegPath?, environment, message, timestamp }` (no
+  secrets). `renderProject` checks availability **before** creating any
+  job/export rows and fails with a friendly message when FFmpeg is missing;
+  `RenderProgressScreen` shows it with Retry. **Vercel/serverless is not suitable
+  for FFmpeg rendering — a render worker is the next step.**
 - Emotion colors come from a single source of truth: `lib/emotions.ts`
   (`getEmotionColor()` / `emotionColorMap`). Do not re-inline emotion hex values.
 - A first **Supabase schema** exists at

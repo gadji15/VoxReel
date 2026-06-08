@@ -119,6 +119,15 @@
       fallback kept). FFmpeg resolved at runtime (not bundled); synchronous MVP.
       See `docs/14-rendering-engine-spec.md`.
 
+- [x] Render diagnostics & safety: `lib/render/environment.ts` (server-only)
+      `detectRenderEnvironment` / `isFfmpegAvailable` / `getFfmpegDiagnostics`
+      (spawns `ffmpeg -version`; classifies local/vercel/node-server). New route
+      `GET /api/health/render` returns `{ ok, ffmpegAvailable, ffmpegPath?,
+      environment, message, timestamp }` (no secrets). `renderProject` checks
+      availability **before** creating job/export rows and fails with a friendly
+      message; `RenderProgressScreen` surfaces it with Retry. Documents that
+      Vercel/serverless is unsuitable for FFmpeg.
+
 ## Next recommended tasks
 
 - [ ] Background render queue (`render_jobs` progress polled via

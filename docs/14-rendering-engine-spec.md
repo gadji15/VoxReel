@@ -40,6 +40,33 @@ without bundling a large binary; the operator provides FFmpeg at runtime. A font
 for captions is auto-detected (Windows/Linux/macOS common paths or
 `RENDER_FONT_PATH`); if none is found, captions are skipped (video still renders).
 
+## Environment detection & diagnostics
+
+`lib/render/environment.ts` (server-only) exposes `detectRenderEnvironment()`,
+`isFfmpegAvailable()`, and `getFfmpegDiagnostics()`. The latter verifies FFmpeg by
+actually spawning `ffmpeg -version` (for the PATH case) and returns a serializable
+`{ ok, ffmpegAvailable, ffmpegPath?, environment, message }` (no secrets — the
+path is a filesystem path).
+
+- **`GET /api/health/render`** returns those diagnostics + a `timestamp`
+  (HTTP 200 when available, 503 when not).
+- **`renderProject` fails fast**: before creating any `render_jobs`/`exports`
+  rows, it checks `isFfmpegAvailable()` and returns the friendly message *"Rendering
+  is not available in this environment. Run locally with FFmpeg or use the render
+  worker."* — so no broken records are left on environments without FFmpeg.
+- `RenderProgressScreen` surfaces that message in its error view (with **Retry**);
+  the mock fallback (no `projectId`) is unaffected.
+
+## Local vs production
+
+- **Local / Node server / container:** install FFmpeg (or `pnpm add
+  ffmpeg-static`, or set `FFMPEG_PATH`). `GET /api/health/render` should report
+  `ok: true`. Rendering works.
+- **Vercel / serverless:** **not suitable** — no FFmpeg binary and strict
+  time/memory limits. The diagnostics report `environment: "vercel"`, `ok:
+  false`, and renders fail gracefully with the message above. Use a dedicated
+  worker/container for production rendering.
+
 ## MVP limitations / deployment
 
 - **Runtime requires FFmpeg** (system install, `FFMPEG_PATH`, or

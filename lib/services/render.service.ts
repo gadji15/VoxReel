@@ -18,7 +18,12 @@ import { ROUTES } from '@/lib/routes'
 import type { Database } from '@/lib/supabase/database.types'
 import { buildRenderTimeline, RENDER_WIDTH, RENDER_HEIGHT, RENDER_FPS } from '@/lib/render/timeline'
 import { renderTimelineToFile, type RenderSceneSpec } from '@/lib/render/ffmpeg-renderer'
+import { isFfmpegAvailable } from '@/lib/render/environment'
 import type { RenderResult, RenderExportMetadata, RenderJobStatus } from '@/lib/render/types'
+
+/** Shown when FFmpeg can't be invoked in the current runtime. */
+export const FFMPEG_UNAVAILABLE_MESSAGE =
+  'Rendering is not available in this environment. Run locally with FFmpeg or use the render worker.'
 
 type RenderJobRow = Database['public']['Tables']['render_jobs']['Row']
 type ExportRow = Database['public']['Tables']['exports']['Row']
@@ -212,6 +217,12 @@ export async function renderProject(projectId: string): Promise<RenderResult> {
   const scenes = scenesRes.data ?? []
   if (scenes.length === 0) {
     return { ok: false, status: 'failed', error: 'No scenes to render. Run analysis first.' }
+  }
+
+  // Fail fast if FFmpeg can't run here — BEFORE creating any job/export rows,
+  // so we never leave broken records on environments without FFmpeg.
+  if (!(await isFfmpegAvailable())) {
+    return { ok: false, status: 'failed', error: FFMPEG_UNAVAILABLE_MESSAGE }
   }
 
   const timeline = buildRenderTimeline({

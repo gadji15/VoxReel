@@ -292,6 +292,13 @@ cached clips, and audio:
   `ffmpeg-static` (`pnpm add ffmpeg-static`), or have `ffmpeg` on PATH. The MVP
   render is **synchronous/in-memory** — run on a Node server/container, not
   serverless. See [`docs/14-rendering-engine-spec.md`](docs/14-rendering-engine-spec.md).
+- **Render diagnostics:** `lib/render/environment.ts` detects FFmpeg + the runtime
+  (`local`/`vercel`/`node-server`). **`GET /api/health/render`** returns
+  `{ ok, ffmpegAvailable, ffmpegPath?, environment, message, timestamp }` (no
+  secrets; 503 when FFmpeg is missing). If FFmpeg isn't available, a render fails
+  fast with a clear message (no broken `render_jobs`/`exports` rows) and the
+  render screen shows it with Retry. **Vercel/serverless is not suitable for
+  FFmpeg rendering.**
 
 > Still MVP, not final cinematic polish: no motion/transitions/color-grade yet,
 > single-line captions, and a blocking render (no queue). A full **captions
