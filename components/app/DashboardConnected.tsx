@@ -11,11 +11,21 @@ import type { Project } from '@/lib/types'
  * "create" calls the server action (which makes a real row + redirects), and
  * opening a project carries its `projectId` into the (still mock) create flow.
  */
-export function DashboardConnected({ projects }: { projects: Project[] }) {
+export function DashboardConnected({
+  projects,
+  userName,
+  userEmail,
+}: {
+  projects: Project[]
+  userName?: string
+  userEmail?: string
+}) {
   const router = useRouter()
   return (
     <HomeDashboard
       projects={projects}
+      userName={userName}
+      userEmail={userEmail}
       onCreateReel={() => {
         void createNewProjectAction()
       }}

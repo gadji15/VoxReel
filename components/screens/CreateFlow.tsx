@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, type ChangeEvent, type DragEvent } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Mic, Upload, ChevronLeft, ChevronRight, Square, Play, Loader2, Check, X } from 'lucide-react'
 import { AudioWaveform, StaticWaveform } from '@/components/voxreel/AudioWaveform'
 import { mockStyles } from '@/lib/mock-data'
@@ -25,6 +26,11 @@ interface CreateFlowProps {
 /* ── Step 1: Audio Upload / Record ── */
 export function AudioUploadScreen({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
   const { setAudioMetadata, projectId } = useCreateFlow()
+  // The URL `?projectId=` is authoritative and available immediately; the
+  // provider's `projectId` only becomes real once the bridge has hydrated. Using
+  // the URL value avoids a race where a real upload silently falls back to mock.
+  const urlProjectId = useSearchParams().get('projectId')
+  const effectiveProjectId = urlProjectId ?? projectId
   const [mode, setMode] = useState<'record' | 'upload'>('record')
   const [isRecording, setIsRecording] = useState(false)
   const [recordingSeconds, setRecordingSeconds] = useState(0)
@@ -58,7 +64,7 @@ export function AudioUploadScreen({ onNext, onBack }: { onNext: () => void; onBa
 
   // Real upload: browser → Supabase Storage, then persist metadata, then advance.
   const runUpload = async () => {
-    if (!projectId || !selectedFile) return
+    if (!effectiveProjectId || !selectedFile) return
     const v = validateAudioFile(selectedFile)
     if (!v.ok) {
       setError(v.error ?? 'Unsupported file.')
@@ -87,11 +93,11 @@ export function AudioUploadScreen({ onNext, onBack }: { onNext: () => void; onBa
 
       const result = await uploadAudioFile({
         file: selectedFile,
-        projectId,
+        projectId: effectiveProjectId,
         userId: user.id,
         durationSeconds,
       })
-      const saved = await saveAudioMetadataAction(projectId, {
+      const saved = await saveAudioMetadataAction(effectiveProjectId, {
         fileName: result.fileName,
         storageBucket: result.storageBucket,
         storagePath: result.storagePath,
@@ -110,8 +116,8 @@ export function AudioUploadScreen({ onNext, onBack }: { onNext: () => void; onBa
   }
 
   const handleContinue = () => {
-    // Real upload only when we have a real project AND a chosen file.
-    if (projectId && mode === 'upload' && selectedFile) {
+    // Real upload only when we have a real project (from the URL) AND a chosen file.
+    if (effectiveProjectId && mode === 'upload' && selectedFile) {
       void runUpload()
       return
     }

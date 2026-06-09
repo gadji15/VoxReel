@@ -10,6 +10,32 @@
 - Preserve the dark, premium, cinematic, mobile-first design.
 - Keep the UI working and the build green.
 
+## Diagnostics (mock vs real, prod auth)
+
+**Intentionally still mock (cosmetic — harmless, do NOT block the pipeline):**
+dashboard **stats** ("Total Views/Reels Made/AI Accuracy"), **Trending styles**,
+placeholder **waveforms**, the upload tab's **demo file** card, and **Record
+Voice** mode (records nothing real → mock metadata). The dashboard greeting now
+shows the **real** signed-in name/email (was hardcoded "Alex Moreno"); Settings
+already showed the real user.
+
+**Real-pipeline gating (the "quickly returns mock" symptom):** the create flow
+goes REAL only when a real `projectId` exists AND real audio was uploaded
+(`audio.storagePath` set). It falls back to mock when: no `projectId`, **Record**
+mode, or no file chosen. **Bug fixed:** `AudioUploadScreen` read `projectId` from
+the *provider* (which lags during hydration), so a real Upload could silently go
+mock — it now reads the **URL `?projectId=`** (authoritative). `projectId` is
+correctly preserved through every create step (verified).
+
+**Production "Invalid login credentials":** the browser client reaches the right
+project (`invalid_credentials`, CORS ok), so env vars are set in Vercel. Most
+likely cause: **localhost and production point to DIFFERENT Supabase projects**,
+so the account exists in one but not the other — or email-confirmation / wrong
+password. Diagnose with `GET /api/health/auth-config` (compare `projectRef` on
+localhost vs the deployed URL) and `GET /api/debug/project-flow?projectId=…`.
+
+## Done
+
 ## Done
 
 - [x] Rename package to `voxreel`.
@@ -146,6 +172,13 @@
       and runs a stale reaper (worker id + env knobs). Multiple workers are safe;
       per-worker concurrency still 1. See `docs/17-render-worker-spec.md`.
       **Run migration 002 in Supabase.**
+
+- [x] Render queue monitoring: `lib/services/render-monitoring.service.ts`
+      (server-only, admin) aggregate stats + health summary;
+      `GET /api/health/render-queue` (200/503, counts only — no secrets/other-user
+      data); FFmpeg-only `GET /api/health/render` kept separate; auth-only
+      `/app/settings/render-health` diagnostics page (aggregate + the user's own
+      jobs), linked from Settings. See `docs/17-render-worker-spec.md`.
 
 ## Next recommended tasks
 

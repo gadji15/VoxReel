@@ -61,6 +61,28 @@ export page with the real MP4 + signed download URL. If the worker is **not**
 running, the job stays `queued` and the UI shows *"Queued for rendering — waiting
 for the render worker…"*.
 
+## Monitoring & health
+
+Developer-facing, **no secrets, no other-user content** (only aggregate counts):
+
+- `lib/services/render-monitoring.service.ts` (server-only, admin client) —
+  `getRenderQueueStats()`, `getRecentRenderJobs()`, `getStaleRenderJobs()`,
+  `getRenderWorkerHealthSummary()`. Stats: queued / processing /
+  completed-recent (24h) / failed-recent / **stale processing** / oldest-queued
+  age / latest completed + failed timestamps.
+- **`GET /api/health/render-queue`** → `{ ok, queue, worker: { healthy,
+  message }, ffmpeg, staleAfterSeconds, timestamp }`. **200 healthy / 503**
+  unhealthy. Unhealthy = stale `processing` jobs exist, OR a queued backlog whose
+  oldest job has waited > 10 min (suggests no worker consuming). FFmpeg
+  availability reflects *this host* (may not be the worker), so it's informational
+  and does **not** flip queue health.
+- **`GET /api/health/render`** stays focused on FFmpeg availability for *this*
+  host (kept separate to avoid a bloated endpoint).
+- **Diagnostics page** (auth-only, dark UI): `/app/settings/render-health` shows
+  the aggregate queue stats + FFmpeg badge + a stale warning + the **signed-in
+  user's own** recent renders (session-scoped). Linked unobtrusively from
+  Settings ("Render health (developer)").
+
 ## Deployment
 
 - **Web app** (Vercel/serverless ok): only enqueues + polls; never runs FFmpeg.

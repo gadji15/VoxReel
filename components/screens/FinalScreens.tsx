@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import {
   ChevronLeft, Play, Pause, Volume2, VolumeX, Maximize2,
@@ -746,6 +747,14 @@ export function SettingsScreen({ onBack, userEmail, userName }: SettingsScreenPr
 
       {/* Sign out */}
       <SignOutButton />
+
+      {/* Developer diagnostics (small, unobtrusive link) */}
+      <Link
+        href="/app/settings/render-health"
+        className="text-center text-[11px] text-secondary-text hover:text-foreground transition-colors"
+      >
+        Render health (developer)
+      </Link>
 
       {/* Version */}
       <p className="text-center text-[11px] text-secondary-text">VoxReel v2.4.1 · Made for storytellers</p>

@@ -9,6 +9,30 @@ emotionally-arced scenes, matches each scene to cinematic stock footage, applies
 motion, transitions, and captions, and renders a share-ready 9:16 reel, while
 keeping you in control of every scene.
 
+## Troubleshooting
+
+**Health/diagnostic routes** (no secrets):
+`/api/health/supabase`, `/api/health/render`, `/api/health/render-queue`,
+**`/api/health/auth-config`** (project ref + env presence + reachability),
+**`/api/debug/project-flow?projectId=<uuid>`** (auth-required; per-table row
+counts for *your* project).
+
+**Production login says "Invalid login credentials"** even though the user
+"exists": the browser reaches Supabase fine, so this is almost always **two
+different Supabase projects** — the account lives in the project your *localhost*
+`.env.local` points to, not the one your *Vercel* env vars point to (or vice
+versa). Open `/api/health/auth-config` on **both** localhost and the deployed URL
+and compare `projectRef`. If they differ, point both at the same project (or
+re-create the user / reset its password in the correct project; also check
+Auth → Providers → "Confirm email").
+
+**Localhost shows some "fake" data:** the dashboard **stats**, **Trending**, and
+**waveforms** are intentionally cosmetic mock; the greeting now uses your real
+name/email. The create flow runs the **real** pipeline only when you open it with
+a real `?projectId=` (use **New Reel** / a project card) **and** upload a file via
+the **Upload Audio** tab — **Record Voice** is still mock. Verify progress with
+`/api/debug/project-flow`.
+
 ## Current status
 
 > ⚠️ **Frontend-only UI skeleton.** This repository (originally generated with
@@ -326,6 +350,15 @@ the RPC, **heartbeats** while rendering, **retries with backoff** on transient
 errors (fails after `max_attempts`), and runs a **stale reaper**. **Running
 multiple workers is now safe** (each still processes one job at a time); test
 concurrency under load before relying on it. No Redis/BullMQ yet.
+
+**Monitoring:** `GET /api/health/render-queue` returns aggregate queue health —
+`{ ok, queue: { queued, processing, failedRecent, staleProcessing,
+oldestQueuedAgeSeconds, … }, worker: { healthy, message }, ffmpeg, timestamp }`
+(**200** healthy / **503** when stale jobs or a stuck queued backlog). It exposes
+**only counts/timestamps — no secrets, no other-user content**.
+`GET /api/health/render` stays FFmpeg-only. An auth-only diagnostics page at
+**`/app/settings/render-health`** (linked from Settings) shows the stats, FFmpeg
+availability, and the signed-in user's own recent renders.
 - **Render diagnostics:** `lib/render/environment.ts` detects FFmpeg + the runtime
   (`local`/`vercel`/`node-server`). **`GET /api/health/render`** returns
   `{ ok, ffmpegAvailable, ffmpegPath?, environment, message, timestamp }` (no

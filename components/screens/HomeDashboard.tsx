@@ -9,6 +9,9 @@ import type { Project } from '@/lib/types'
 interface HomeDashboardProps {
   /** Real recent projects. If omitted, falls back to mock data (dev). */
   projects?: Project[]
+  /** Authenticated user's display name / email (for the greeting). */
+  userName?: string
+  userEmail?: string
   onCreateReel: () => void
   onOpenProject: (id: string) => void
 }
@@ -19,9 +22,11 @@ const stats = [
   { label: 'AI Accuracy', value: '91%', sub: 'Avg clip match', color: '#F0EDE6' },
 ]
 
-export function HomeDashboard({ projects, onCreateReel, onOpenProject }: HomeDashboardProps) {
+export function HomeDashboard({ projects, userName, userEmail, onCreateReel, onOpenProject }: HomeDashboardProps) {
   // Real data when provided (even if empty); mock fallback for dev otherwise.
   const recent = projects ?? mockProjects.slice(0, 3)
+  // Real signed-in identity when available; neutral fallback (NOT a fake name).
+  const displayName = userName?.trim() || userEmail?.split('@')[0] || 'Creator'
 
   return (
     <div className="flex flex-col gap-8 pb-28 lg:pb-10">
@@ -29,8 +34,8 @@ export function HomeDashboard({ projects, onCreateReel, onOpenProject }: HomeDas
       {/* Header */}
       <div className="flex items-center justify-between pt-1">
         <div>
-          <p className="text-xs font-medium tracking-wide mb-1" style={{ color: '#7A8394' }}>Good evening</p>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Alex Moreno</h1>
+          <p className="text-xs font-medium tracking-wide mb-1" style={{ color: '#7A8394' }}>Welcome back</p>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">{displayName}</h1>
         </div>
         <button
           className="relative w-9 h-9 flex items-center justify-center rounded-full border border-border hover:bg-muted transition-colors"

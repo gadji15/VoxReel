@@ -134,6 +134,15 @@ This repo is a **frontend-only UI skeleton**, generated with v0.
   **stale reaper** (`RENDER_WORKER_STALE_AFTER_SECONDS` / `…_REAPER_INTERVAL_MS`;
   worker id via `RENDER_WORKER_ID`). Multiple workers are now safe (per-worker
   concurrency still 1). **Run migration 002 in Supabase.** Still no Redis/BullMQ.
+- **Render queue monitoring.** `lib/services/render-monitoring.service.ts`
+  (server-only, admin client) exposes aggregate queue stats + a worker-health
+  summary — counts/timestamps only, **no secrets, no other-user content**.
+  `GET /api/health/render-queue` → `{ ok, queue, worker, ffmpeg, timestamp }`
+  (200 healthy / 503 when stale jobs or a stuck queued backlog);
+  `GET /api/health/render` stays FFmpeg-only. Auth-only diagnostics page at
+  `/app/settings/render-health` (aggregate stats + the signed-in user's OWN
+  recent jobs), linked unobtrusively from Settings. Never return the service
+  role / private rows.
 - **Render diagnostics.** `lib/render/environment.ts`
   `detectRenderEnvironment()` / `isFfmpegAvailable()` / `getFfmpegDiagnostics()`
   verify FFmpeg (spawns `ffmpeg -version`) and classify the runtime
@@ -143,6 +152,18 @@ This repo is a **frontend-only UI skeleton**, generated with v0.
   job/export rows and fails with a friendly message when FFmpeg is missing;
   `RenderProgressScreen` shows it with Retry. **Vercel/serverless is not suitable
   for FFmpeg rendering — a render worker is the next step.**
+- **Diagnostics & intentional mock.** Cosmetic mock that's safe to keep:
+  dashboard **stats**/**Trending**/**waveforms**, the upload **demo-file** card,
+  and **Record Voice** mode (mock metadata). The dashboard greeting now uses the
+  **real** user (name/email) — not "Alex Moreno". The create flow runs the REAL
+  pipeline only with a real `?projectId=` **and** real uploaded audio
+  (`audio.storagePath`); else it mock-falls-back. `AudioUploadScreen` reads the
+  **URL `projectId`** (not the lagging provider value) so a real Upload never
+  silently goes mock. Diagnostic routes (no secrets):
+  `GET /api/health/auth-config` (Supabase `projectRef` + env presence +
+  reachability — compare localhost vs prod to debug "Invalid login credentials",
+  usually two different projects) and `GET /api/debug/project-flow?projectId=…`
+  (auth-only per-table row counts for the user's project).
 - Emotion colors come from a single source of truth: `lib/emotions.ts`
   (`getEmotionColor()` / `emotionColorMap`). Do not re-inline emotion hex values.
 - A first **Supabase schema** exists at
