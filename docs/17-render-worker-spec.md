@@ -68,11 +68,47 @@ for the render worker…"*.
   Docker (`Dockerfile.worker` installs FFmpeg + fonts), a VPS, Render, Fly.io,
   or Railway. Provide `SUPABASE_SERVICE_ROLE_KEY` + the Supabase URL via secrets.
 
+## Reliability (migration 002)
+
+`supabase/migrations/002_render_worker_reliability.sql` hardens the queue:
+
+- **New `render_jobs` columns:** `attempts`, `max_attempts` (default 3),
+  `locked_at`, `locked_by`, `next_retry_at`, `worker_started_at`,
+  `last_heartbeat_at` (+ indexes on `(status, next_retry_at)`, `(status,
+  locked_at)`, `locked_by`).
+- **Atomic claim:** `public.claim_next_render_job(worker_id text)` selects the
+  oldest eligible `queued` job with **`FOR UPDATE SKIP LOCKED`**, flips it to
+  `processing`, increments `attempts`, and stamps `locked_by`/`locked_at`/
+  `last_heartbeat_at`/`started_at`. Two workers can never claim the same job.
+  Only eligible when `next_retry_at` is null or due.
+- **Stale reaper:** `public.requeue_stale_render_jobs(stale_after_seconds int)`
+  finds `processing` jobs whose `last_heartbeat_at`/`locked_at` is older than the
+  timeout and **requeues** them (with a short `next_retry_at`) if attempts
+  remain, else **fails** them. Returns the affected count.
+- Both functions are `security definer` and **granted only to `service_role`**
+  (the worker); `PUBLIC` execute is revoked so signed-in users can't run them.
+
+Worker behaviour (`lib/services/render-worker.service.ts` +
+`workers/render-worker.ts`):
+
+- A stable **worker id** (`RENDER_WORKER_ID`, else `host-pid-random`) claims via
+  the RPC. `attempts` is incremented atomically at claim time.
+- A **heartbeat** timer (every 30s) refreshes `last_heartbeat_at` while the job
+  renders — and only if this worker still owns the row — so the reaper won't
+  requeue an actively-rendering job. Render steps also heartbeat.
+- **Retry with backoff:** a transient render/upload error requeues the job with
+  `next_retry_at = now + min(30·2^(attempt-1), 600)s`; once `attempts >=
+  max_attempts` it's failed. Permanent/validation errors (no scenes, project not
+  found, FFmpeg unavailable) fail immediately (no retry churn).
+- A **reaper** interval (`RENDER_WORKER_REAPER_INTERVAL_MS`, default 60s) calls
+  `requeueStaleRenderJobs(RENDER_WORKER_STALE_AFTER_SECONDS, default 900)`.
+
 ## Limitations / follow-ups
 
-- [ ] Single worker, single job at a time (`RENDER_WORKER_CONCURRENCY` reserved).
-- [ ] Polling claim (no row locking / `FOR UPDATE SKIP LOCKED`); fine for 1
-      worker, racy for many. Move to a real queue (PG `SKIP LOCKED`, or
-      Redis/BullMQ) for multi-worker.
-- [ ] No retry/backoff on transient failures; a failed job stays `failed`.
-- [ ] No stale-job reaper (a worker that dies mid-job leaves `processing`).
+- [x] Atomic claim with `FOR UPDATE SKIP LOCKED`, retries + backoff, stale-job
+      reaper (migration 002).
+- [ ] Still **one job at a time per worker** (`RENDER_WORKER_CONCURRENCY`
+      reserved). Multiple workers are now safe to run, but test concurrency
+      carefully under load.
+- [ ] No Redis/BullMQ; this is a Postgres-based queue. Consider a real broker for
+      high throughput / priorities / scheduling.

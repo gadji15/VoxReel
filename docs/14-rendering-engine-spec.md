@@ -11,6 +11,9 @@
 > Orchestration moved from a blocking server action to the **render worker**
 > (`lib/services/render-worker.service.ts`); the web `startRenderProjectAction`
 > now only enqueues, and `RenderProgressScreen` polls `getRenderStatusAction`.
+> Queue hardening (atomic `FOR UPDATE SKIP LOCKED` claim, heartbeats, retries +
+> backoff, stale-job reaper) lives in migration `002` — see
+> `docs/17-render-worker-spec.md`.
 
 ## How it works
 

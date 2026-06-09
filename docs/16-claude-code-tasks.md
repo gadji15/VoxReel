@@ -138,10 +138,19 @@
       browser via `node:*`). Added `Dockerfile.worker` + worker env vars. See
       `docs/17-render-worker-spec.md`.
 
+- [x] Render worker reliability (migration `002_render_worker_reliability.sql`):
+      `render_jobs` gains attempt/lock/heartbeat columns + indexes; `service_role`
+      RPCs `claim_next_render_job` (atomic `FOR UPDATE SKIP LOCKED`, increments
+      attempts) and `requeue_stale_render_jobs`. Worker claims via RPC,
+      heartbeats during render, retries with backoff (fails after max_attempts),
+      and runs a stale reaper (worker id + env knobs). Multiple workers are safe;
+      per-worker concurrency still 1. See `docs/17-render-worker-spec.md`.
+      **Run migration 002 in Supabase.**
+
 ## Next recommended tasks
 
-- [ ] Multi-worker safety: PG `SELECT … FOR UPDATE SKIP LOCKED` (or Redis/BullMQ)
-      claiming, retry/backoff, and a stale-`processing` reaper.
+- [ ] Load-test multiple concurrent workers; consider `RENDER_WORKER_CONCURRENCY`
+      > 1 and/or a real broker (Redis/BullMQ) for priorities/scheduling/throughput.
 - [ ] Real caption engine (multi-line, styled, timed) consumed by the renderer.
 - [ ] Add archive/delete affordances to the project cards (actions already exist).
 - [ ] Add a drag-to-reorder UI for the storyboard (reducer action already exists).

@@ -316,6 +316,16 @@ pnpm worker:render
 The web app only enqueues/polls, so it is **serverless-safe**; deploy the worker
 on Docker/VPS/Fly/Railway. See
 [`docs/17-render-worker-spec.md`](docs/17-render-worker-spec.md).
+
+**Reliability (migration 002 — run it in Supabase):**
+[`supabase/migrations/002_render_worker_reliability.sql`](supabase/migrations/002_render_worker_reliability.sql)
+adds attempt/lock/heartbeat columns to `render_jobs` plus two `service_role`-only
+functions — `claim_next_render_job` (atomic `FOR UPDATE SKIP LOCKED` claim) and
+`requeue_stale_render_jobs` (stale-job requeue/fail). The worker now claims via
+the RPC, **heartbeats** while rendering, **retries with backoff** on transient
+errors (fails after `max_attempts`), and runs a **stale reaper**. **Running
+multiple workers is now safe** (each still processes one job at a time); test
+concurrency under load before relying on it. No Redis/BullMQ yet.
 - **Render diagnostics:** `lib/render/environment.ts` detects FFmpeg + the runtime
   (`local`/`vercel`/`node-server`). **`GET /api/health/render`** returns
   `{ ok, ffmpegAvailable, ffmpegPath?, environment, message, timestamp }` (no

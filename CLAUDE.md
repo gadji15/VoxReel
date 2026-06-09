@@ -122,6 +122,18 @@ This repo is a **frontend-only UI skeleton**, generated with v0.
   imports keep them out of the browser. Deploy the worker with FFmpeg
   (`Dockerfile.worker` / VPS / Fly / Railway); the web app only enqueues + polls
   and is serverless-safe. See `docs/17-render-worker-spec.md`.
+- **Render worker reliability (migration 002).**
+  `supabase/migrations/002_render_worker_reliability.sql` adds `render_jobs`
+  columns (`attempts`/`max_attempts`/`locked_at`/`locked_by`/`next_retry_at`/
+  `worker_started_at`/`last_heartbeat_at` + indexes) and two `service_role`-only
+  functions: `claim_next_render_job(worker_id)` (atomic `FOR UPDATE SKIP LOCKED`
+  claim that increments `attempts`) and `requeue_stale_render_jobs(seconds)`
+  (requeue/fail stale `processing` jobs). The worker claims via the RPC,
+  **heartbeats** while rendering, **retries with backoff** on transient errors
+  (fails after `max_attempts`; permanent errors fail immediately), and runs a
+  **stale reaper** (`RENDER_WORKER_STALE_AFTER_SECONDS` / `…_REAPER_INTERVAL_MS`;
+  worker id via `RENDER_WORKER_ID`). Multiple workers are now safe (per-worker
+  concurrency still 1). **Run migration 002 in Supabase.** Still no Redis/BullMQ.
 - **Render diagnostics.** `lib/render/environment.ts`
   `detectRenderEnvironment()` / `isFfmpegAvailable()` / `getFfmpegDiagnostics()`
   verify FFmpeg (spawns `ffmpeg -version`) and classify the runtime

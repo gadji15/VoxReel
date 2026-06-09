@@ -483,6 +483,13 @@ export type Database = {
           metadata: Json
           created_at: string
           updated_at: string
+          attempts: number
+          max_attempts: number
+          locked_at: string | null
+          locked_by: string | null
+          next_retry_at: string | null
+          worker_started_at: string | null
+          last_heartbeat_at: string | null
         }
         Insert: {
           id?: string
@@ -503,6 +510,13 @@ export type Database = {
           metadata?: Json
           created_at?: string
           updated_at?: string
+          attempts?: number
+          max_attempts?: number
+          locked_at?: string | null
+          locked_by?: string | null
+          next_retry_at?: string | null
+          worker_started_at?: string | null
+          last_heartbeat_at?: string | null
         }
         Update: {
           id?: string
@@ -523,6 +537,13 @@ export type Database = {
           metadata?: Json
           created_at?: string
           updated_at?: string
+          attempts?: number
+          max_attempts?: number
+          locked_at?: string | null
+          locked_by?: string | null
+          next_retry_at?: string | null
+          worker_started_at?: string | null
+          last_heartbeat_at?: string | null
         }
         Relationships: []
       }
@@ -660,7 +681,44 @@ export type Database = {
       }
     }
     Views: Record<never, never>
-    Functions: Record<never, never>
+    Functions: {
+      /** Atomically claim the oldest eligible queued render job (migration 002). */
+      claim_next_render_job: {
+        Args: { worker_id: string }
+        Returns: {
+          id: string
+          project_id: string
+          user_id: string
+          status: string
+          progress: number
+          current_step: string | null
+          render_preset: string | null
+          resolution_width: number
+          resolution_height: number
+          fps: number
+          started_at: string | null
+          completed_at: string | null
+          failed_at: string | null
+          error_message: string | null
+          error_code: string | null
+          metadata: Json
+          created_at: string
+          updated_at: string
+          attempts: number
+          max_attempts: number
+          locked_at: string | null
+          locked_by: string | null
+          next_retry_at: string | null
+          worker_started_at: string | null
+          last_heartbeat_at: string | null
+        }[]
+      }
+      /** Requeue or fail stale `processing` jobs (migration 002). */
+      requeue_stale_render_jobs: {
+        Args: { stale_after_seconds: number }
+        Returns: number
+      }
+    }
     Enums: Record<never, never>
     CompositeTypes: Record<never, never>
   }
