@@ -1,17 +1,23 @@
-import 'server-only'
-
 /**
- * VoxReel — render environment diagnostics (SERVER-ONLY)
+ * VoxReel — render environment diagnostics (server-side only by nature)
  *
  * Detects whether FFmpeg is usable in the current runtime so we can fail render
  * requests gracefully (instead of with a confusing FFmpeg spawn error), and so a
  * health route can report readiness. No secrets are read or returned; the
  * resolved FFmpeg *path* is a filesystem path, not a credential.
+ *
+ * NOTE: no `import 'server-only'` here so the render worker (tsx) can reuse it.
+ * Its `node:*` imports keep it out of any browser bundle. Do not import from a
+ * client component.
  */
 
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
+
+/** Shown when FFmpeg can't be invoked in the current runtime. */
+export const FFMPEG_UNAVAILABLE_MESSAGE =
+  'Rendering is not available in this environment. Run locally with FFmpeg or use the render worker.'
 
 export type RenderEnvironment = 'local' | 'vercel' | 'node-server' | 'unknown'
 

@@ -1,9 +1,16 @@
 # 14 — Rendering Engine Spec
 
-> Status: **Implemented (MVP) with FFmpeg.** A real 1080×1920 MP4 is rendered
-> server-side from the project's scenes + cached clips + audio, uploaded to
-> `video-exports`, and recorded in `render_jobs` / `exports`. This is a
+> Status: **Implemented (MVP) with FFmpeg + a background worker.** A real
+> 1080×1920 MP4 is rendered from the project's scenes + cached clips + audio,
+> uploaded to `video-exports`, and recorded in `render_jobs` / `exports`. As of
+> the worker task, the web app **enqueues** jobs and a separate **worker**
+> process renders them — see `docs/17-render-worker-spec.md`. This is a
 > functional MVP, **not** final cinematic polish.
+
+> NOTE: the "How it works" section below describes the FFmpeg pipeline itself.
+> Orchestration moved from a blocking server action to the **render worker**
+> (`lib/services/render-worker.service.ts`); the web `startRenderProjectAction`
+> now only enqueues, and `RenderProgressScreen` polls `getRenderStatusAction`.
 
 ## How it works
 

@@ -3,16 +3,24 @@
 /**
  * VoxReel — render server actions
  *
- * Server-only entry points for the MVP renderer. Return clean serializable data;
- * never expose secrets or storage internals beyond a short-lived signed URL.
+ * Web side: ENQUEUE a render job (no FFmpeg here) and read job status / export
+ * metadata. The worker (`pnpm worker:render`) processes queued jobs. Returns
+ * clean serializable data; never exposes secrets.
  */
 
 import {
-  renderProject,
-  getRenderJob,
-  getLatestExport,
-} from '@/lib/services/render.service'
-import type { RenderResult, RenderExportMetadata, RenderJobStatus } from '@/lib/render/types'
+  enqueueRenderProject,
+  getLatestRenderJobForProject,
+} from '@/lib/services/render-queue.service'
+import { getLatestExport } from '@/lib/services/render.service'
+import type { RenderExportMetadata, RenderJobStatus } from '@/lib/render/types'
+
+export interface EnqueueRenderResult {
+  ok: boolean
+  jobId: string | null
+  status: RenderJobStatus | 'none'
+  error: string | null
+}
 
 export interface RenderStatusView {
   status: RenderJobStatus | 'none'
@@ -21,20 +29,21 @@ export interface RenderStatusView {
   error: string | null
 }
 
-/** Render the project now (synchronous MVP) and return the result. */
-export async function startRenderProjectAction(projectId: string): Promise<RenderResult> {
+/** Enqueue a render job for the project (deduped). Does NOT run FFmpeg. */
+export async function startRenderProjectAction(projectId: string): Promise<EnqueueRenderResult> {
   try {
-    return await renderProject(projectId)
+    const job = await enqueueRenderProject(projectId)
+    return { ok: true, jobId: job.id, status: job.status as RenderJobStatus, error: null }
   } catch (err) {
-    const error = err instanceof Error ? err.message : 'Render failed.'
-    return { ok: false, status: 'failed', error }
+    const error = err instanceof Error ? err.message : 'Could not start render.'
+    return { ok: false, jobId: null, status: 'none', error }
   }
 }
 
-/** Read the latest render job status for the project. */
+/** Read the latest render job status for the project (polled by the UI). */
 export async function getRenderStatusAction(projectId: string): Promise<RenderStatusView> {
   try {
-    const job = await getRenderJob(projectId)
+    const job = await getLatestRenderJobForProject(projectId)
     if (!job) return { status: 'none', progress: 0, currentStep: null, error: null }
     return {
       status: job.status as RenderJobStatus,

@@ -104,7 +104,25 @@ This repo is a **frontend-only UI skeleton**, generated with v0.
   `ffmpeg-static` if installed → PATH) — **not bundled**; synchronous/in-memory
   MVP (needs a Node server/container, not serverless). **Captions engine + render
   polish still pending.**
-- **Render diagnostics.** `lib/render/environment.ts` (server-only)
+- **Render queue + worker.** Rendering is now **enqueue + background worker**,
+  not a blocking action. Web (session/RLS): `lib/services/render-queue.service.ts`
+  (`enqueueRenderProject` — dedupes in-flight jobs — `getLatestRenderJobForProject`,
+  `getRenderJobById`) + `render.service.ts` (`getLatestExport`).
+  `startRenderProjectAction` only **enqueues** a `render_jobs` row (`queued`);
+  `RenderProgressScreen` polls `getRenderStatusAction` every 2.5s and shows real
+  `render_jobs.progress` (or "waiting for the render worker" while `queued`).
+  Worker (service role, **no session**): `lib/services/render-worker.service.ts`
+  (`claimNextQueuedRenderJob` atomic claim, `processRenderJobWithAdmin`,
+  `processQueuedRenderJobsLoop`) + entry `workers/render-worker.ts`
+  (`pnpm worker:render`, tsx). The worker creates the admin client **inline**
+  (not via the `server-only` admin module) and is **never imported by the app**;
+  every query is still scoped to the job's `project_id`+`user_id`. The shared
+  render modules (`timeline`/`ffmpeg-renderer`/`environment`/`constants`) dropped
+  their `server-only` guard so the worker (tsx) can reuse them — their `node:*`
+  imports keep them out of the browser. Deploy the worker with FFmpeg
+  (`Dockerfile.worker` / VPS / Fly / Railway); the web app only enqueues + polls
+  and is serverless-safe. See `docs/17-render-worker-spec.md`.
+- **Render diagnostics.** `lib/render/environment.ts`
   `detectRenderEnvironment()` / `isFfmpegAvailable()` / `getFfmpegDiagnostics()`
   verify FFmpeg (spawns `ffmpeg -version`) and classify the runtime
   (`local`/`vercel`/`node-server`). `GET /api/health/render` returns

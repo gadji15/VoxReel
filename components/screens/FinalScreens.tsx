@@ -10,7 +10,11 @@ import {
 import { VideoPreviewPhoneFrame } from '@/components/voxreel/VideoPreviewPhoneFrame'
 import { useCreateFlow } from '@/components/providers/CreateFlowProvider'
 import { SignOutButton } from '@/components/auth/SignOutButton'
-import { startRenderProjectAction, getLatestExportAction } from '@/app/app/create/render/actions'
+import {
+  startRenderProjectAction,
+  getRenderStatusAction,
+  getLatestExportAction,
+} from '@/app/app/create/render/actions'
 import { formatBytes } from '@/lib/upload/audio-upload'
 import type { RenderExportMetadata } from '@/lib/render/types'
 import { cn } from '@/lib/utils'
@@ -216,6 +220,9 @@ export function RenderProgressScreen({ onComplete, onBack }: RenderProgressProps
   const [done, setDone] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [attempt, setAttempt] = useState(0)
+  // Live step text from the worker (queued/processing), shown instead of the
+  // generic stage label when present.
+  const [liveStep, setLiveStep] = useState<string | null>(null)
 
   const stages = [
     'Preparing timeline...',
@@ -231,6 +238,7 @@ export function RenderProgressScreen({ onComplete, onBack }: RenderProgressProps
     setError(null)
     setDone(false)
     setProgress(0)
+    setLiveStep(null)
     setRenderStatus('rendering')
 
     // ── Mock fallback (no real project) ──
@@ -263,29 +271,19 @@ export function RenderProgressScreen({ onComplete, onBack }: RenderProgressProps
       return () => clearInterval(id)
     }
 
-    // ── Real render (projectId present): the server action is synchronous, so
-    //    we animate progress up to ~90% while we await the result. ──
-    let p = 0
-    const ticker = setInterval(() => {
-      p = Math.min(p + 1.4, 90)
-      setProgress(Math.round(p))
-      setCurrentStage(Math.min(Math.floor(p / (100 / stages.length)), stages.length - 1))
-    }, 250)
+    // ── Real render (projectId present): ENQUEUE a job, then POLL render_jobs
+    //    until the worker completes/fails it. ──
+    let pollTimer: ReturnType<typeof setTimeout> | null = null
 
-    startRenderProjectAction(projectId)
-      .then((result) => {
-        if (cancelled) return
-        clearInterval(ticker)
-        if (!result.ok || !result.export) {
-          setRenderStatus('error')
-          setError(result.error ?? 'Render failed. Please try again.')
-          return
-        }
-        const exp = result.export
-        setProgress(100)
-        setCurrentStage(stages.length - 1)
-        setDone(true)
-        setRenderStatus('complete')
+    const finishWithExport = async () => {
+      setProgress(100)
+      setCurrentStage(stages.length - 1)
+      setDone(true)
+      setLiveStep('Render complete')
+      setRenderStatus('complete')
+      const exp = await getLatestExportAction(projectId)
+      if (cancelled) return
+      if (exp) {
         setExportMetadata({
           fileName: exp.fileName,
           duration: fmtSeconds(exp.durationSeconds),
@@ -299,18 +297,60 @@ export function RenderProgressScreen({ onComplete, onBack }: RenderProgressProps
           storagePath: exp.storagePath,
           downloadUrl: exp.downloadUrl,
         })
-        setTimeout(onComplete, 1500)
+      }
+      setTimeout(() => {
+        if (!cancelled) onComplete()
+      }, 1500)
+    }
+
+    const poll = async () => {
+      const s = await getRenderStatusAction(projectId)
+      if (cancelled) return
+
+      if (s.status === 'completed') {
+        await finishWithExport()
+        return
+      }
+      if (s.status === 'failed') {
+        setRenderStatus('error')
+        setError(s.error ?? 'Render failed. Please try again.')
+        return
+      }
+
+      // queued or processing — reflect real progress, keep polling.
+      if (s.status === 'queued') {
+        setProgress((prev) => Math.max(prev, 5))
+        setLiveStep(`${s.currentStep ?? 'Queued for rendering'} — waiting for the render worker…`)
+      } else {
+        const next = Math.max(s.progress || 10, 6)
+        setProgress(next)
+        setCurrentStage(Math.min(Math.floor(next / (100 / stages.length)), stages.length - 1))
+        setLiveStep(s.currentStep ?? 'Rendering…')
+      }
+      pollTimer = setTimeout(poll, 2500)
+    }
+
+    startRenderProjectAction(projectId)
+      .then((res) => {
+        if (cancelled) return
+        if (!res.ok) {
+          setRenderStatus('error')
+          setError(res.error ?? 'Could not start render.')
+          return
+        }
+        setProgress(5)
+        setLiveStep('Queued for rendering — waiting for the render worker…')
+        poll()
       })
       .catch((e) => {
         if (cancelled) return
-        clearInterval(ticker)
         setRenderStatus('error')
-        setError(e instanceof Error ? e.message : 'Render failed. Please try again.')
+        setError(e instanceof Error ? e.message : 'Could not start render.')
       })
 
     return () => {
       cancelled = true
-      clearInterval(ticker)
+      if (pollTimer) clearTimeout(pollTimer)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attempt])
@@ -396,10 +436,10 @@ export function RenderProgressScreen({ onComplete, onBack }: RenderProgressProps
       {/* Stage info */}
       <div className="text-center">
         <p className="text-sm font-semibold text-foreground" aria-live="polite">
-          {done ? 'Render complete!' : stages[currentStage]}
+          {done ? 'Render complete!' : (liveStep ?? stages[currentStage])}
         </p>
         <p className="text-xs text-secondary-text mt-1">
-          {done ? 'Your reel is ready to export.' : `Scene ${Math.min(Math.ceil(progress / 12.5), 8)} of 8`}
+          {done ? 'Your reel is ready to export.' : 'This runs on the render worker and can take a moment.'}
         </p>
       </div>
 

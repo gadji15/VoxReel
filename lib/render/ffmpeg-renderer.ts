@@ -1,12 +1,15 @@
-import 'server-only'
-
 /**
- * VoxReel — FFmpeg renderer (SERVER-ONLY)
+ * VoxReel — FFmpeg renderer (server-side only by nature)
  *
  * Composes a 1080×1920 MP4 from already-downloaded local assets using FFmpeg via
  * `child_process` (no browser imports, no secrets). Each scene is encoded to an
  * identical-codec segment, segments are concatenated, then the original audio is
  * muxed in. Text overlays are best-effort (only when a usable font is found).
+ *
+ * NOTE: this module intentionally has NO `import 'server-only'` so it can be
+ * reused by the standalone render worker (run via tsx). Its `node:*` imports
+ * already make it impossible to bundle into the browser. Do NOT import it from a
+ * client component.
  *
  * FFmpeg binary resolution (first hit wins):
  *   1. `process.env.FFMPEG_PATH`

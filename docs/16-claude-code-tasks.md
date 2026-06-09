@@ -128,11 +128,20 @@
       message; `RenderProgressScreen` surfaces it with Retry. Documents that
       Vercel/serverless is unsuitable for FFmpeg.
 
+- [x] Render queue + worker: web `startRenderProjectAction` now **enqueues** a
+      `render_jobs` row (`lib/services/render-queue.service.ts`, deduped) and the
+      render screen **polls** `getRenderStatusAction`. A standalone worker
+      (`workers/render-worker.ts`, `pnpm worker:render` via tsx +
+      `lib/services/render-worker.service.ts`, service role) claims queued jobs
+      and runs FFmpeg off the request path. Shared render modules dropped their
+      `server-only` guard so the worker can reuse them (still un-bundleable in the
+      browser via `node:*`). Added `Dockerfile.worker` + worker env vars. See
+      `docs/17-render-worker-spec.md`.
+
 ## Next recommended tasks
 
-- [ ] Background render queue (`render_jobs` progress polled via
-      `getRenderStatusAction`) + a container worker (current render is a blocking
-      server action and needs FFmpeg at runtime — not serverless-friendly).
+- [ ] Multi-worker safety: PG `SELECT … FOR UPDATE SKIP LOCKED` (or Redis/BullMQ)
+      claiming, retry/backoff, and a stale-`processing` reaper.
 - [ ] Real caption engine (multi-line, styled, timed) consumed by the renderer.
 - [ ] Add archive/delete affordances to the project cards (actions already exist).
 - [ ] Add a drag-to-reorder UI for the storyboard (reducer action already exists).

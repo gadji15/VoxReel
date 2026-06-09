@@ -1,0 +1,6 @@
+# pnpm build-script approvals (pnpm 11 records these here, not in package.json).
+# tsx's esbuild dependency works without running its postinstall, so we skip it.
+# Keep this file committed so `pnpm install` / `pnpm build` don't prompt/fail on
+# the "ignored build scripts" gate.
+allowBuilds:
+  esbuild: false

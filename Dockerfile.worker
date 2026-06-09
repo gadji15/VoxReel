@@ -1,0 +1,36 @@
+# VoxReel — render worker image
+#
+# A small Node image with FFmpeg, running the background render worker that
+# polls Supabase for queued render_jobs and processes them.
+#
+# Build:  docker build -f Dockerfile.worker -t voxreel-render-worker .
+# Run:    docker run --env-file .env.local voxreel-render-worker
+#
+# The worker needs SUPABASE_SERVICE_ROLE_KEY (server-side only — never shipped to
+# the browser). Provide env vars at runtime (e.g. --env-file or your platform's
+# secret manager). Do NOT bake secrets into the image.
+
+FROM node:20-bookworm-slim
+
+# FFmpeg + fonts (for caption overlays) + CA certs for HTTPS downloads.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+# Enable pnpm via corepack.
+RUN corepack enable
+
+WORKDIR /app
+
+# Install dependencies (use the lockfile for reproducible installs).
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+
+# Copy the rest of the source (worker + shared lib).
+COPY . .
+
+# FFmpeg is on PATH from the apt install above; a DejaVu font is available for
+# caption overlays. Override with FFMPEG_PATH / RENDER_FONT_PATH if needed.
+ENV NODE_ENV=production
+
+CMD ["pnpm", "worker:render"]

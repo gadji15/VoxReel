@@ -289,9 +289,33 @@ cached clips, and audio:
   `ExportSuccessScreen` shows real metadata and a short-lived **signed download
   URL**.
 - **FFmpeg is required at runtime** (not bundled): set `FFMPEG_PATH`, install
-  `ffmpeg-static` (`pnpm add ffmpeg-static`), or have `ffmpeg` on PATH. The MVP
-  render is **synchronous/in-memory** — run on a Node server/container, not
-  serverless. See [`docs/14-rendering-engine-spec.md`](docs/14-rendering-engine-spec.md).
+  `ffmpeg-static` (`pnpm add ffmpeg-static`), or have `ffmpeg` on PATH. See
+  [`docs/14-rendering-engine-spec.md`](docs/14-rendering-engine-spec.md).
+
+### Render queue + worker
+
+Rendering runs in a **background worker**, not the web request:
+
+- The web app **enqueues** a `render_jobs` row (`startRenderProjectAction` →
+  `lib/services/render-queue.service.ts`); `RenderProgressScreen` **polls**
+  `getRenderStatusAction` and shows real `render_jobs.progress` (or "waiting for
+  the render worker" while `queued`).
+- The **worker** (`pnpm worker:render`, `workers/render-worker.ts` via tsx)
+  claims queued jobs and runs FFmpeg with the **service role**
+  (`lib/services/render-worker.service.ts`) — server-side only, never imported by
+  the app/browser. Run it on a host with FFmpeg (see
+  [`Dockerfile.worker`](Dockerfile.worker)).
+
+```bash
+# terminal 1
+pnpm dev
+# terminal 2 (needs FFmpeg + SUPABASE_SERVICE_ROLE_KEY in .env.local)
+pnpm worker:render
+```
+
+The web app only enqueues/polls, so it is **serverless-safe**; deploy the worker
+on Docker/VPS/Fly/Railway. See
+[`docs/17-render-worker-spec.md`](docs/17-render-worker-spec.md).
 - **Render diagnostics:** `lib/render/environment.ts` detects FFmpeg + the runtime
   (`local`/`vercel`/`node-server`). **`GET /api/health/render`** returns
   `{ ok, ffmpegAvailable, ffmpegPath?, environment, message, timestamp }` (no
