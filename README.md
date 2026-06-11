@@ -33,6 +33,13 @@ a real `?projectId=` (use **New Reel** / a project card) **and** upload a file v
 the **Upload Audio** tab — **Record Voice** is still mock. Verify progress with
 `/api/debug/project-flow`.
 
+**Every create button uses one flow:** the dashboard hero/empty-state, the
+Projects "New Reel"/empty-state, **and the nav plus / sidebar "New Reel"** all
+call `createNewProjectAction()` → a real `projects` row → redirect to
+`/app/create/upload?projectId=<uuid>`. No in-app create button enters the flow
+without a `projectId`. (Direct visits to `/app/create/upload` still mock-fall-back
+for dev, with a console warning.)
+
 ## Current status
 
 > ⚠️ **Frontend-only UI skeleton.** This repository (originally generated with

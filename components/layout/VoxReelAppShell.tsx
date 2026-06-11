@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { DesktopSidebar } from '@/components/voxreel/DesktopSidebar'
 import { MobileBottomNav } from '@/components/voxreel/MobileBottomNav'
+import { createNewProjectAction } from '@/app/app/projects/actions'
 import { ROUTES } from '@/lib/routes'
 
 /**
@@ -12,11 +13,14 @@ import { ROUTES } from '@/lib/routes'
  * and navigation is performed with the Next.js router.
  */
 
-/** Map a nav tab id to its destination route. */
+/**
+ * Map a nav tab id to its destination route. NOTE: the "create" tab is handled
+ * separately (it must create a REAL project, not just navigate) — see
+ * `handleTabChange`.
+ */
 const tabToRoute: Record<string, string> = {
   home: ROUTES.APP,
   projects: ROUTES.PROJECTS,
-  create: ROUTES.CREATE_UPLOAD,
   // "Library" maps to Projects for now (frontend-only).
   library: ROUTES.PROJECTS,
   settings: ROUTES.SETTINGS,
@@ -38,6 +42,14 @@ export function VoxReelAppShell({ children }: { children: ReactNode }) {
   const activeTab = getActiveTab(pathname)
 
   const handleTabChange = (tab: string) => {
+    // The "create" tab (mobile plus button + desktop "New Reel") must use the
+    // SAME canonical flow as every other create button: create a real Supabase
+    // project, then the server action redirects to
+    // /app/create/upload?projectId=<uuid>. Never navigate there without an id.
+    if (tab === 'create') {
+      void createNewProjectAction()
+      return
+    }
     const target = tabToRoute[tab]
     if (target) router.push(target)
   }

@@ -152,6 +152,14 @@ This repo is a **frontend-only UI skeleton**, generated with v0.
   job/export rows and fails with a friendly message when FFmpeg is missing;
   `RenderProgressScreen` shows it with Retry. **Vercel/serverless is not suitable
   for FFmpeg rendering — a render worker is the next step.**
+- **Canonical create flow.** EVERY in-app create entry point — dashboard
+  hero/empty-state, Projects "New Reel"/empty-state, and the **nav plus / sidebar
+  "New Reel"** (`VoxReelAppShell.handleTabChange('create')`) — calls the single
+  server action `createNewProjectAction()` (creates a real `projects` row →
+  redirects to `/app/create/upload?projectId=<uuid>`). Do not add create buttons
+  that `router.push('/app/create*')` without a `projectId`. The public landing
+  "Get Started" (→ `/app`) and the direct `/app/create` redirect are intentional
+  exceptions (dev/no-project fallback).
 - **Diagnostics & intentional mock.** Cosmetic mock that's safe to keep:
   dashboard **stats**/**Trending**/**waveforms**, the upload **demo-file** card,
   and **Record Voice** mode (mock metadata). The dashboard greeting now uses the

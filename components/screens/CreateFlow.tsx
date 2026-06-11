@@ -138,6 +138,18 @@ export function AudioUploadScreen({ onNext, onBack }: { onNext: () => void; onBa
     return () => clearInterval(id)
   }, [isRecording])
 
+  // Dev-only: warn if the create flow was entered without a real projectId
+  // (e.g. a direct visit). Every in-app create button passes one via the URL.
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'production' && !urlProjectId) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        '[VoxReel] Create flow entered WITHOUT ?projectId= — using the mock fallback. ' +
+          'Use a Create / New Reel button (they create a real Supabase project) to run the real pipeline.'
+      )
+    }
+  }, [urlProjectId])
+
   const toggleRecord = () => {
     if (isRecording) {
       setIsRecording(false)

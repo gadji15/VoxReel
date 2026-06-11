@@ -10,6 +10,24 @@
 - Preserve the dark, premium, cinematic, mobile-first design.
 - Keep the UI working and the build green.
 
+## Create-button consistency (canonical create flow)
+
+**Every** in-app create entry point now uses the one canonical action
+`createNewProjectAction()` (creates a real `projects` row → redirects to
+**`/app/create/upload?projectId=<uuid>`**):
+
+- Dashboard hero CTA + empty-state button (`HomeDashboard` → `DashboardConnected`).
+- Projects "New Reel" + empty-state (`ProjectsScreen` → `ProjectsConnected`).
+- **Mobile bottom-nav plus** + **desktop sidebar "New Reel"** — *previously broken*:
+  they went through `VoxReelAppShell.handleTabChange('create')` → `router.push(
+  ROUTES.CREATE_UPLOAD)` with **no projectId** (mock flow). Now `handleTabChange`
+  intercepts the `create` tab and calls `createNewProjectAction()`.
+
+Left intentionally unchanged: the public landing **Get Started** (`/` → `/app`,
+middleware gates auth), and the direct `/app/create` → `/app/create/upload`
+redirect (a dev/no-project fallback). A **dev-only** `console.warn` fires if the
+create flow is opened without `?projectId=`.
+
 ## Diagnostics (mock vs real, prod auth)
 
 **Intentionally still mock (cosmetic — harmless, do NOT block the pipeline):**
