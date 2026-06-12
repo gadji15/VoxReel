@@ -28,6 +28,27 @@ middleware gates auth), and the direct `/app/create` → `/app/create/upload`
 redirect (a dev/no-project fallback). A **dev-only** `console.warn` fires if the
 create flow is opened without `?projectId=`.
 
+## Full-pipeline test notes (local)
+
+- Upload validation: **5–180 s, ≤ 50 MB**, mp3/m4a/wav/webm/ogg/mp4. A ~26 s,
+  0.4 MB MP3 passes. Files **> 180 s are rejected** with "Audio is too long…"
+  (intentional MVP cap; raise `MAX_AUDIO_SECONDS` in `lib/upload/audio-upload.ts`
+  if you need longer test clips).
+- Verify each step wrote rows via **`/api/debug/project-flow?projectId=<uuid>`**
+  (`audio_files → transcript_segments → scenes → clip_candidates →
+  selected_clips → render_jobs → exports`). Check env/project ref with
+  **`/api/health/auth-config`**; queue with **`/api/health/render-queue`**.
+- Real pipeline requires: a real `?projectId=` (any Create button), the **Upload
+  Audio** tab (not Record), and keys in `.env.local` (`OPENAI_API_KEY` for
+  transcription+analysis; `PEXELS_API_KEY`/`PIXABAY_API_KEY` for stock search;
+  FFmpeg + `pnpm worker:render` for rendering). Missing keys fail gracefully
+  (analysis surfaces a friendly error; stock search/cache are non-fatal; renders
+  stay `queued` until a worker runs).
+- The storyboard header now shows the **real** project title + selected style
+  (was hardcoded "Midnight Betrayal"/"Noir"). Known remaining cosmetic mock:
+  `DesktopSidebar` still shows "Alex Moreno / Pro Plan" (P2 — needs the user
+  plumbed through `VoxReelAppShell`).
+
 ## Diagnostics (mock vs real, prod auth)
 
 **Intentionally still mock (cosmetic — harmless, do NOT block the pipeline):**

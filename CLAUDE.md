@@ -171,7 +171,9 @@ This repo is a **frontend-only UI skeleton**, generated with v0.
   `GET /api/health/auth-config` (Supabase `projectRef` + env presence +
   reachability — compare localhost vs prod to debug "Invalid login credentials",
   usually two different projects) and `GET /api/debug/project-flow?projectId=…`
-  (auth-only per-table row counts for the user's project).
+  (auth-only per-table row counts for the user's project). The storyboard header
+  shows the **real** project title + style (was hardcoded). Remaining cosmetic
+  mock to wire later: `DesktopSidebar` user block ("Alex Moreno / Pro Plan").
 - Emotion colors come from a single source of truth: `lib/emotions.ts`
   (`getEmotionColor()` / `emotionColorMap`). Do not re-inline emotion hex values.
 - A first **Supabase schema** exists at

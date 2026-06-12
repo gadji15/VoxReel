@@ -46,6 +46,11 @@ export function StoryboardScreen({ onSceneSelect, onNext, onBack }: StoryboardSc
 
   const sceneCount = scenes.length
   const duration = state.audio.duration ?? scenes[scenes.length - 1]?.timeEnd ?? '0:00'
+  // Real project identity (was hardcoded "Midnight Betrayal" / "Noir").
+  const projectTitle = state.projectTitle || 'Untitled Reel'
+  const styleLabel = state.storyStyle
+    ? state.storyStyle.charAt(0).toUpperCase() + state.storyStyle.slice(1)
+    : '—'
 
   return (
     <div className="flex flex-col gap-5 pb-24 lg:pb-6">
@@ -56,7 +61,7 @@ export function StoryboardScreen({ onSceneSelect, onNext, onBack }: StoryboardSc
             <ChevronLeft className="w-4 h-4 text-foreground" />
           </button>
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-widest text-secondary-text">Midnight Betrayal</p>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-secondary-text truncate max-w-[180px]">{projectTitle}</p>
             <h1 className="text-xl font-bold text-foreground">Storyboard</h1>
           </div>
         </div>
@@ -88,7 +93,7 @@ export function StoryboardScreen({ onSceneSelect, onNext, onBack }: StoryboardSc
           <div className="w-px h-8 bg-border" aria-hidden="true" />
           <div>
             <p className="text-[10px] text-secondary-text uppercase tracking-wide">Style</p>
-            <p className="text-sm font-bold text-foreground">Noir</p>
+            <p className="text-sm font-bold text-foreground">{styleLabel}</p>
           </div>
         </div>
         <button className="flex items-center gap-1 text-xs text-secondary-text hover:text-foreground transition-colors">
